@@ -1,12 +1,12 @@
 "use client"
 
 import { useState } from "react"
-import type { GenreNode } from "@/lib/dummy-data"
+import type { GenreTreeNode } from "@/lib/api"
 import { motion, AnimatePresence } from "framer-motion"
 
 interface GenreWheelProps {
-  genres: GenreNode[]
-  onSelect: (node: GenreNode, path: GenreNode[]) => void
+  genres: GenreTreeNode[]
+  onSelect: (node: GenreTreeNode, path: GenreTreeNode[]) => void
 }
 
 export function GenreWheel({ genres, onSelect }: GenreWheelProps) {
@@ -36,7 +36,7 @@ export function GenreWheel({ genres, onSelect }: GenreWheelProps) {
 
   const cameraOffset = getCameraOffset()
 
-  const handleGenreClick = (genre: GenreNode) => {
+  const handleGenreClick = (genre: GenreTreeNode) => {
     if (expandedGenre === genre.id) {
       onSelect(genre, [genre])
     } else if (genre.children && genre.children.length > 0) {
@@ -47,7 +47,7 @@ export function GenreWheel({ genres, onSelect }: GenreWheelProps) {
     }
   }
 
-  const handleSubGenreClick = (parent: GenreNode, child: GenreNode) => {
+  const handleSubGenreClick = (parent: GenreTreeNode, child: GenreTreeNode) => {
     if (expandedSubGenre === child.id) {
       onSelect(child, [parent, child])
     } else if (child.children && child.children.length > 0) {
@@ -57,7 +57,7 @@ export function GenreWheel({ genres, onSelect }: GenreWheelProps) {
     }
   }
 
-  const handleSubSubGenreClick = (parent: GenreNode, child: GenreNode, grandchild: GenreNode) => {
+  const handleSubSubGenreClick = (parent: GenreTreeNode, child: GenreTreeNode, grandchild: GenreTreeNode) => {
     onSelect(grandchild, [parent, child, grandchild])
   }
 
@@ -256,7 +256,7 @@ export function GenreWheel({ genres, onSelect }: GenreWheelProps) {
                     <circle
                       cx={x}
                       cy={y}
-                      r={isExpanded ? 58 : isHovered ? 52 : 48}
+                      r={isExpanded ? 65 : isHovered ? 58 : 55}
                       fill={isExpanded ? "#557153" : "#6B8E6A"}
                       stroke={isExpanded ? "#3E2723" : "#557153"}
                       strokeWidth={isExpanded ? 3 : 2}
@@ -311,7 +311,7 @@ export function GenreWheel({ genres, onSelect }: GenreWheelProps) {
                                 <circle
                                   cx={childX}
                                   cy={childY}
-                                  r={isSubExpanded ? 40 : 36}
+                                  r={isSubExpanded ? 45 : 42}
                                   fill={isSubExpanded ? "#C17D47" : "#D4A574"}
                                   stroke="#8D6E63"
                                   strokeWidth={isSubExpanded ? 3 : 2}
@@ -323,9 +323,9 @@ export function GenreWheel({ genres, onSelect }: GenreWheelProps) {
                                   y={childY}
                                   textAnchor="middle"
                                   dominantBaseline="middle"
-                                  className="fill-white font-['Zilla_Slab',serif] text-xs font-medium pointer-events-none"
+                                  className="fill-white font-['Zilla_Slab',serif] text-sm font-medium pointer-events-none"
                                 >
-                                  {child.name.length > 12 ? `${child.name.substring(0, 10)}...` : child.name}
+                                  {child.name.length > 15 ? `${child.name.substring(0, 13)}...` : child.name}
                                 </text>
 
                                 {child.children && child.children.length > 0 && (
@@ -368,7 +368,7 @@ export function GenreWheel({ genres, onSelect }: GenreWheelProps) {
                                           <circle
                                             cx={grandchildX}
                                             cy={grandchildY}
-                                            r={30}
+                                            r={35}
                                             fill="#E76F51"
                                             stroke="#6B5B55"
                                             strokeWidth={2}
@@ -380,10 +380,10 @@ export function GenreWheel({ genres, onSelect }: GenreWheelProps) {
                                             y={grandchildY}
                                             textAnchor="middle"
                                             dominantBaseline="middle"
-                                            className="fill-white font-['Zilla_Slab',serif] text-[11px] font-medium pointer-events-none"
+                                            className="fill-white font-['Zilla_Slab',serif] text-xs font-medium pointer-events-none"
                                           >
-                                            {grandchild.name.length > 10
-                                              ? `${grandchild.name.substring(0, 8)}...`
+                                            {grandchild.name.length > 12
+                                              ? `${grandchild.name.substring(0, 10)}...`
                                               : grandchild.name}
                                           </text>
                                         </motion.g>

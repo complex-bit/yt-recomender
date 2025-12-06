@@ -1,35 +1,72 @@
 "use client"
 
 import { useRouter } from "next/navigation"
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { VideoCard } from "@/components/video-card"
 import { SearchInput } from "@/components/search-input"
 import { CircularSlider } from "@/components/circular-slider"
 import { FlowProgress } from "@/components/flow-progress"
 import { Button } from "@/components/ui/button"
 import { useFlow } from "@/lib/flow-context"
-import { dummyWatchHistory } from "@/lib/dummy-data"
+import { searchVideos, submitVideoFeedback, type WatchHistoryItem } from "@/lib/api"
 import { RotateCcw, Sparkles } from "lucide-react"
 
 export default function ResultsPage() {
   const router = useRouter()
   const { flow, updateFlow, resetFlow } = useFlow()
   const [isRegenerating, setIsRegenerating] = useState(false)
+  const [videos, setVideos] = useState<WatchHistoryItem[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const [totalResults, setTotalResults] = useState(0)
 
   const [lengthValue, setLengthValue] = useState(flow.refinementValues.length[0] || 50)
   const [popularityValue, setPopularityValue] = useState(flow.refinementValues.popularity[0] || 50)
   const [recencyValue, setRecencyValue] = useState(flow.refinementValues.recency[0] || 50)
 
-  const handleThumbsFeedback = (videoId: string, feedback: "up" | "down") => {
-    updateFlow({
-      videoFeedback: {
-        ...flow.videoFeedback,
-        [videoId]: feedback,
-      },
-    })
+  const loadVideos = async () => {
+    try {
+      setLoading(true)
+      const searchParams = {
+        query: flow.searchQuery,
+        genrePath: flow.selectedGenrePath,
+        refinements: {
+          length: lengthValue,
+          popularity: popularityValue,
+          recency: recencyValue,
+        },
+      }
+
+      const results = await searchVideos(searchParams)
+      setVideos(results.videos)
+      setTotalResults(results.total)
+    } catch (err) {
+      setError('Failed to load videos')
+      console.error('Video search error:', err)
+    } finally {
+      setLoading(false)
+    }
   }
 
-  const handleRegenerate = () => {
+  useEffect(() => {
+    loadVideos()
+  }, [flow.searchQuery, flow.selectedGenrePath])
+
+  const handleThumbsFeedback = async (videoId: string, feedback: "up" | "down") => {
+    try {
+      await submitVideoFeedback(videoId, feedback)
+      updateFlow({
+        videoFeedback: {
+          ...flow.videoFeedback,
+          [videoId]: feedback,
+        },
+      })
+    } catch (err) {
+      console.error('Failed to submit feedback:', err)
+    }
+  }
+
+  const handleRegenerate = async () => {
     updateFlow({
       refinementValues: {
         length: [lengthValue],
@@ -38,6 +75,7 @@ export default function ResultsPage() {
       },
     })
     setIsRegenerating(true)
+    await loadVideos()
     setTimeout(() => setIsRegenerating(false), 800)
   }
 
@@ -127,8 +165,13 @@ export default function ResultsPage() {
             <div>
               <div className="text-sm text-[#6B5B55] mb-1 font-['Zilla_Slab',serif]">{breadcrumb}</div>
               <p className="text-[#3E2723] text-lg">
-                Found <span className="font-bold text-[#E76F51]">{dummyWatchHistory.length}</span> videos matching your
-                vibe
+                {loading ? (
+                  "Loading videos..."
+                ) : error ? (
+                  <span className="text-red-500">{error}</span>
+                ) : (
+                  <>Found <span className="font-bold text-[#E76F51]">{totalResults}</span> videos matching your vibe</>
+                )}
               </p>
             </div>
             <Button onClick={handleStartOver} variant="ghost" size="sm" className="text-[#6B5B55] hover:text-[#3E2723]">
@@ -140,17 +183,31 @@ export default function ResultsPage() {
           {/* Video Grid */}
           <div
             className={`grid grid-cols-1 md:grid-cols-2 gap-6 mb-8 transition-opacity duration-300 ${
-              isRegenerating ? "opacity-50" : "opacity-100"
+              isRegenerating || loading ? "opacity-50" : "opacity-100"
             }`}
           >
-            {dummyWatchHistory.map((video) => (
-              <VideoCard
-                key={video.videoId}
-                video={video}
-                onThumbsUp={() => handleThumbsFeedback(video.videoId, "up")}
-                onThumbsDown={() => handleThumbsFeedback(video.videoId, "down")}
-              />
-            ))}
+            {loading ? (
+              <div className="col-span-1 md:col-span-2 text-center py-12">
+                <div className="text-[#6B5B55]">Searching for your perfect videos...</div>
+              </div>
+            ) : error ? (
+              <div className="col-span-1 md:col-span-2 text-center py-12">
+                <div className="text-red-500">{error}</div>
+              </div>
+            ) : videos.length === 0 ? (
+              <div className="col-span-1 md:col-span-2 text-center py-12">
+                <div className="text-[#6B5B55]">No videos found. Try a different search or genre.</div>
+              </div>
+            ) : (
+              videos.map((video) => (
+                <VideoCard
+                  key={video.videoId}
+                  video={video}
+                  onThumbsUp={() => handleThumbsFeedback(video.videoId, "up")}
+                  onThumbsDown={() => handleThumbsFeedback(video.videoId, "down")}
+                />
+              ))
+            )}
           </div>
 
           {/* Load More */}

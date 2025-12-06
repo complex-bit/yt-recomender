@@ -1,10 +1,10 @@
 import type React from "react"
 import type { Metadata } from "next"
-import { Geist } from "next/font/google"
+import { Inter } from "next/font/google"
 import { Analytics } from "@vercel/analytics/next"
 import "./globals.css"
 
-const _geist = Geist({ subsets: ["latin"] })
+const inter = Inter({ subsets: ["latin"] })
 
 export const metadata: Metadata = {
   title: "WhyExplore - Discover Videos You'll Actually Want to Watch",
@@ -37,7 +37,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body className={`font-sans antialiased`}>
+      <body className={`${inter.className} font-sans antialiased`}>
         {children}
         <Analytics />
       </body>
