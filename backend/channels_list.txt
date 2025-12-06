@@ -1,0 +1,131 @@
+# YouTube Channels to Scrape
+# Add one channel URL per line
+# Lines starting with # are comments and will be ignored
+
+# Tech/Engineering
+https://www.youtube.com/@veritasium
+https://www.youtube.com/@RealEngineering
+https://www.youtube.com/@Kurzgesagt
+https://www.youtube.com/@TED
+https://www.youtube.com/@TEDEd
+https://www.youtube.com/@SmarterEveryDay
+https://www.youtube.com/@3blue1brown
+https://www.youtube.com/@numberphile
+https://www.youtube.com/@Computerphile
+https://www.youtube.com/@MKBHD
+https://www.youtube.com/@UnboxTherapy
+https://www.youtube.com/@TechLinked
+https://www.youtube.com/@LinusTechTips
+https://www.youtube.com/@TheB1M
+https://www.youtube.com/@engineerguy
+https://www.youtube.com/@PracticalEngineering
+https://www.youtube.com/@ElectroBOOM
+https://www.youtube.com/@TechnologyConnections
+
+# Science/Education
+https://www.youtube.com/@AsapSCIENCE
+https://www.youtube.com/@CrashCourse
+https://www.youtube.com/@Vsauce
+https://www.youtube.com/@minutephysics
+https://www.youtube.com/@SteveMould
+https://www.youtube.com/@NileRed
+https://www.youtube.com/@CGPGrey
+https://www.youtube.com/@oversimplified
+https://www.youtube.com/@ProfessorDaveExplains
+https://www.youtube.com/@SciShow
+https://www.youtube.com/@MinuteEarth
+https://www.youtube.com/@KhanAcademy
+https://www.youtube.com/@BranchEducation
+https://www.youtube.com/@Psych2go
+
+# Documentary/Nature
+https://www.youtube.com/@BBCEarth
+https://www.youtube.com/@NatGeo
+https://www.youtube.com/@Discovery
+https://www.youtube.com/@AnimalPlanet
+https://www.youtube.com/@PBS
+https://www.youtube.com/@NatGeoWild
+https://www.youtube.com/@WildlifeAid
+https://www.youtube.com/@BBCStudios
+
+# Space/Astronomy
+https://www.youtube.com/@SpaceX
+https://www.youtube.com/@NASA
+https://www.youtube.com/@EverydayAstronaut
+https://www.youtube.com/@IsaacArthur
+https://www.youtube.com/@AstroKobi
+https://www.youtube.com/@SEA
+
+# History
+https://www.youtube.com/@OverSimplified
+https://www.youtube.com/@HistoryMatters
+https://www.youtube.com/@AlternateHistoryHub
+https://www.youtube.com/@TheGreatWar
+https://www.youtube.com/@SamuelTheExplorer
+https://www.youtube.com/@TimelineChannel
+
+# Entertainment/Gaming
+https://www.youtube.com/@PewDiePie
+https://www.youtube.com/@MrBeast
+https://www.youtube.com/@DudePerfect
+https://www.youtube.com/@GameTheory
+https://www.youtube.com/@jacksepticeye
+https://www.youtube.com/@Markiplier
+https://www.youtube.com/@VanossGaming
+https://www.youtube.com/@nigahiga
+
+# Programming/Dev
+https://www.youtube.com/@freecodecamp
+https://www.youtube.com/@programmingwithmosh
+https://www.youtube.com/@codewitharry
+https://www.youtube.com/@NetNinja
+https://www.youtube.com/@DerekBanas
+https://www.youtube.com/@Fireship
+https://www.youtube.com/@TraversyMedia
+https://www.youtube.com/@CodeWithHarry
+
+# DIY/Making
+https://www.youtube.com/@styropyro
+https://www.youtube.com/@colinfurze
+https://www.youtube.com/@AvE
+https://www.youtube.com/@ThisOldTony
+https://www.youtube.com/@AdamSavage
+https://www.youtube.com/@AlecSteele
+https://www.youtube.com/@StuffMadeHere
+
+# Business/Economics
+https://www.youtube.com/@WendoverProductions
+https://www.youtube.com/@PolyMatter
+https://www.youtube.com/@ColdFusion
+https://www.youtube.com/@EconomicsExplained
+https://www.youtube.com/@CompanyMan
+
+# Food
+https://www.youtube.com/@BingingWithBabish
+https://www.youtube.com/@GordonRamsay
+https://www.youtube.com/@JoshuaWeissman
+https://www.youtube.com/@AdamRagusea
+https://www.youtube.com/@SortedFood
+
+# Music
+https://www.youtube.com/@12tone
+https://www.youtube.com/@musictheoryguy
+https://www.youtube.com/@SethEverman
+
+# Health/Fitness
+https://www.youtube.com/@medicuseducationis
+https://www.youtube.com/@drmikeisraetel
+https://www.youtube.com/@KneeOverToesGuy
+
+# Philosophy/Psychology
+https://www.youtube.com/@PhilosophyTube
+https://www.youtube.com/@ContraPoints
+https://www.youtube.com/@theschooloflifetv
+
+# Add more channels here - you can easily reach 100+ channels
+# Just paste the YouTube channel URLs below:
+
+# YOUR ADDITIONAL CHANNELS:
+# https://www.youtube.com/@YourChannel1
+# https://www.youtube.com/@YourChannel2
+# https://www.youtube.com/@YourChannel3
