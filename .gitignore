@@ -318,3 +318,9 @@ public
 
 # Webpack
 .webpack/
+
+# Authentication and secrets
+auth/
+*.json
+!package.json
+!package-lock.json
