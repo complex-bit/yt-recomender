@@ -1,7 +1,5 @@
 # WhyExplore - YouTube Discovery App
 
-![WhyExplore Logo](icon.png)
-
 **WhyExplore** is a vintage cinema-themed YouTube discovery app that helps users find new content based on their viewing history. It moves beyond algorithmic recommendations by combining personalized taste analysis with interactive, intentional exploration.
 
 ## ✨ Features

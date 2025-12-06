@@ -56,7 +56,7 @@ def analyze_top_channels():
     for video in watch_history_data['watch_history']:
         # Handle both old format (channelId) and new format (channel)
         channel_id = video.get('channelId') or video.get('channel')
-        channel_title = video.get('channelTitle') or video.get('channel')
+        channel_title = video.get('channel') or video.get('channelTitle', '')
 
         if channel_id:
             channel_counts[channel_id] += 1
@@ -489,7 +489,7 @@ def create_fallback_genre_tree():
     # Create simple tree based on top channels
     channel_counts = Counter()
     for video in watch_history_data['watch_history']:
-        channel = video.get('channel') or video.get('channelTitle')
+        channel = video.get('channel', '')
         if channel:
             channel_counts[channel] += 1
 
@@ -573,7 +573,7 @@ def get_user_profile():
 
         channel_counts = Counter()
         for video in current_watch_history['watch_history']:
-            channel = video.get('channel') or video.get('channelTitle')
+            channel = video.get('channel', '')
             if channel:
                 channel_counts[channel] += 1
 
@@ -623,7 +623,20 @@ def get_user_profile():
                         'name': 'Reviews',
                         'level': 2,
                         'path': ['Technology', 'Reviews'],
-                        'children': []
+                        'children': [
+                            {'id': 'technology_reviews_mobile', 'name': 'Mobile Devices', 'level': 3, 'path': ['Technology', 'Reviews', 'Mobile Devices']},
+                            {'id': 'technology_reviews_gaming', 'name': 'Gaming Hardware', 'level': 3, 'path': ['Technology', 'Reviews', 'Gaming Hardware']}
+                        ]
+                    },
+                    {
+                        'id': 'technology_tutorials',
+                        'name': 'Tutorials',
+                        'level': 2,
+                        'path': ['Technology', 'Tutorials'],
+                        'children': [
+                            {'id': 'technology_tutorials_pc', 'name': 'PC Building', 'level': 3, 'path': ['Technology', 'Tutorials', 'PC Building']},
+                            {'id': 'technology_tutorials_software', 'name': 'Software Guides', 'level': 3, 'path': ['Technology', 'Tutorials', 'Software Guides']}
+                        ]
                     }
                 ]
             })
@@ -636,11 +649,32 @@ def get_user_profile():
         if hist_count > 0:
             genre_tree.append({
                 'id': 'history',
-                'name': 'History & Politics',
+                'name': 'News & Politics',
                 'percentage': round((hist_count / total_videos) * 100),
                 'level': 1,
-                'path': ['History & Politics'],
-                'children': []
+                'path': ['News & Politics'],
+                'children': [
+                    {
+                        'id': 'history_wars',
+                        'name': 'Wars & Conflicts',
+                        'level': 2,
+                        'path': ['News & Politics', 'Wars & Conflicts'],
+                        'children': [
+                            {'id': 'history_wars_ww2', 'name': 'World War II', 'level': 3, 'path': ['News & Politics', 'Wars & Conflicts', 'World War II']},
+                            {'id': 'history_wars_coldwar', 'name': 'Cold War', 'level': 3, 'path': ['News & Politics', 'Wars & Conflicts', 'Cold War']}
+                        ]
+                    },
+                    {
+                        'id': 'history_civics',
+                        'name': 'Politics & Civics',
+                        'level': 2,
+                        'path': ['News & Politics', 'Politics & Civics'],
+                        'children': [
+                            {'id': 'history_civics_government', 'name': 'Government Systems', 'level': 3, 'path': ['News & Politics', 'Politics & Civics', 'Government Systems']},
+                            {'id': 'history_civics_geography', 'name': 'Political Geography', 'level': 3, 'path': ['News & Politics', 'Politics & Civics', 'Political Geography']}
+                        ]
+                    }
+                ]
             })
 
     return jsonify({
@@ -670,7 +704,7 @@ def search_videos():
         for video in videos:
             title_match = search_query in video['title'].lower()
             description_match = search_query in video.get('description', '').lower()
-            channel_match = search_query in video['channelTitle'].lower()
+            channel_match = search_query in video.get('channel', '').lower()
 
             # Handle tags as list
             tags = video.get('tags', [])
@@ -1071,7 +1105,7 @@ def test_genre():
 
     channel_counts = Counter()
     for video in current_watch_history['watch_history']:
-        channel = video.get('channel') or video.get('channelTitle')
+        channel = video.get('channel', '')
         if channel:
             channel_counts[channel] += 1
 

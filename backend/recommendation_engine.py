@@ -129,34 +129,73 @@ class RecommendationEngine:
             # Get all videos with their genres, excluding already watched
             placeholders = ','.join('?' for _ in self.watched_video_ids) if self.watched_video_ids else "''"
 
-            query = f'''
-                SELECT DISTINCT v.video_id, v.title, v.channel_title, v.description,
-                       v.thumbnail, v.duration, v.view_count, v.like_count,
-                       v.published_at, v.tags, v.categories,
-                       vg.primary_genre, vg.secondary_genre, vg.sub_genre,
-                       vg.content_type, vg.educational_level, vg.target_audience,
-                       vg.confidence_score
-                FROM videos v
-                LEFT JOIN (
-                    SELECT video_id,
-                           MAX(primary_genre) as primary_genre,
-                           MAX(secondary_genre) as secondary_genre,
-                           MAX(sub_genre) as sub_genre,
-                           MAX(content_type) as content_type,
-                           MAX(educational_level) as educational_level,
-                           MAX(target_audience) as target_audience,
-                           AVG(confidence_score) as confidence_score
-                    FROM video_genres
-                    GROUP BY video_id
-                ) vg ON v.video_id = vg.video_id
-                WHERE v.video_id NOT IN ({placeholders})
-                ORDER BY
-                    CASE WHEN vg.primary_genre IS NOT NULL THEN 0 ELSE 1 END,
-                    v.view_count DESC
-                LIMIT 100
-            '''
+            # Check if we're filtering by genre to prioritize those videos
+            genre_filter = None
+            if filters and 'genre_path' in filters and filters['genre_path']:
+                genre_filter = filters['genre_path'][0]  # Primary genre
 
-            if self.watched_video_ids:
+            if genre_filter:
+                # When filtering by genre, get more videos of that genre
+                query = f'''
+                    SELECT DISTINCT v.video_id, v.title, v.channel_title, v.description,
+                           v.thumbnail, v.duration, v.view_count, v.like_count,
+                           v.published_at, v.tags, v.categories,
+                           vg.primary_genre, vg.secondary_genre, vg.sub_genre,
+                           vg.content_type, vg.educational_level, vg.target_audience,
+                           vg.confidence_score
+                    FROM videos v
+                    LEFT JOIN (
+                        SELECT video_id,
+                               MAX(primary_genre) as primary_genre,
+                               MAX(secondary_genre) as secondary_genre,
+                               MAX(sub_genre) as sub_genre,
+                               MAX(content_type) as content_type,
+                               MAX(educational_level) as educational_level,
+                               MAX(target_audience) as target_audience,
+                               AVG(confidence_score) as confidence_score
+                        FROM video_genres
+                        GROUP BY video_id
+                    ) vg ON v.video_id = vg.video_id
+                    WHERE v.video_id NOT IN ({placeholders})
+                    ORDER BY
+                        CASE WHEN vg.primary_genre = ? THEN 0 ELSE 1 END,
+                        CASE WHEN vg.primary_genre IS NOT NULL THEN 0 ELSE 1 END,
+                        v.view_count DESC
+                    LIMIT 500
+                '''
+            else:
+                query = f'''
+                    SELECT DISTINCT v.video_id, v.title, v.channel_title, v.description,
+                           v.thumbnail, v.duration, v.view_count, v.like_count,
+                           v.published_at, v.tags, v.categories,
+                           vg.primary_genre, vg.secondary_genre, vg.sub_genre,
+                           vg.content_type, vg.educational_level, vg.target_audience,
+                           vg.confidence_score
+                    FROM videos v
+                    LEFT JOIN (
+                        SELECT video_id,
+                               MAX(primary_genre) as primary_genre,
+                               MAX(secondary_genre) as secondary_genre,
+                               MAX(sub_genre) as sub_genre,
+                               MAX(content_type) as content_type,
+                               MAX(educational_level) as educational_level,
+                               MAX(target_audience) as target_audience,
+                               AVG(confidence_score) as confidence_score
+                        FROM video_genres
+                        GROUP BY video_id
+                    ) vg ON v.video_id = vg.video_id
+                    WHERE v.video_id NOT IN ({placeholders})
+                    ORDER BY
+                        CASE WHEN vg.primary_genre IS NOT NULL THEN 0 ELSE 1 END,
+                        v.view_count DESC
+                    LIMIT 100
+                '''
+
+            if genre_filter and self.watched_video_ids:
+                cursor.execute(query, (genre_filter,) + tuple(self.watched_video_ids))
+            elif genre_filter:
+                cursor.execute(query.replace(f"NOT IN ({placeholders})", "NOT IN ('')"), (genre_filter,))
+            elif self.watched_video_ids:
                 cursor.execute(query, tuple(self.watched_video_ids))
             else:
                 cursor.execute(query.replace(f"NOT IN ({placeholders})", "NOT IN ('')"))
@@ -227,6 +266,11 @@ class RecommendationEngine:
         # Confidence penalty for low-confidence classifications
         if confidence_score and confidence_score < 0.7:
             score *= confidence_score
+
+        # Ensure minimum score for genre exploration
+        # If user has ANY preference for this primary genre, give it at least 0.001 to enable discovery
+        if primary_genre and genre_prefs.get(f'primary_genre:{primary_genre}', 0) > 0:
+            score = max(score, 0.001)
 
         return score
 
