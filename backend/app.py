@@ -50,21 +50,25 @@ def analyze_top_channels():
     channel_info = {}
 
     for video in watch_history_data['watch_history']:
-        channel_id = video['channelId']
-        channel_counts[channel_id] += 1
+        # Handle both old format (channelId) and new format (channel)
+        channel_id = video.get('channelId') or video.get('channel')
+        channel_title = video.get('channelTitle') or video.get('channel')
 
-        # Store channel info (take the latest one)
-        if channel_id not in channel_info:
-            # Use the first category if it's a list, otherwise use the string
-            category = video.get('categories', ['Unknown'])
-            if isinstance(category, list):
-                category = category[0] if category else 'Unknown'
+        if channel_id:
+            channel_counts[channel_id] += 1
 
-            channel_info[channel_id] = {
-                'channelTitle': video['channelTitle'],
-                'category': category,
-                'channelAvatar': video.get('channelAvatar')
-            }
+            # Store channel info (take the latest one)
+            if channel_id not in channel_info:
+                # Use the first category if it's a list, otherwise use the string
+                category = video.get('categories', ['Unknown'])
+                if isinstance(category, list):
+                    category = category[0] if category else 'Unknown'
+
+                channel_info[channel_id] = {
+                    'channelTitle': channel_title,
+                    'category': category,
+                    'channelAvatar': video.get('channelAvatar', '')
+                }
 
     # Get top 5 channels
     top_channels = []
@@ -128,65 +132,198 @@ def analyze_genre_percentages():
     return genre_percentages
 
 def generate_dynamic_genre_tree():
-    """Generate genre tree based on user's actual watch history"""
+    """Generate hierarchical genre tree: Primary > Secondary > Sub > Sub-Sub"""
+    try:
+        import sqlite3
+
+        # Query database for ALL genre classifications to show full genre exploration options
+        conn = sqlite3.connect('youtube_videos.db')
+        cursor = conn.cursor()
+
+        cursor.execute('''
+            SELECT primary_genre, secondary_genre, sub_genre, sub_sub_genre, COUNT(*) as count
+            FROM video_genres
+            WHERE primary_genre IS NOT NULL
+            GROUP BY primary_genre, secondary_genre, sub_genre, sub_sub_genre
+            ORDER BY count DESC
+        ''')
+
+        genre_data = cursor.fetchall()
+        conn.close()
+
+        if not genre_data:
+            return []
+
+        # Build hierarchical tree
+        primary_genres = {}
+
+        for primary, secondary, sub, sub_sub, count in genre_data:
+            if not primary:
+                continue
+
+            # Initialize primary genre
+            if primary not in primary_genres:
+                primary_genres[primary] = {
+                    'name': primary,
+                    'count': 0,
+                    'children': {}
+                }
+
+            primary_genres[primary]['count'] += count
+
+            # Add secondary genre
+            if secondary:
+                if secondary not in primary_genres[primary]['children']:
+                    primary_genres[primary]['children'][secondary] = {
+                        'name': secondary,
+                        'count': 0,
+                        'children': {}
+                    }
+
+                primary_genres[primary]['children'][secondary]['count'] += count
+
+                # Add sub genre
+                if sub:
+                    if sub not in primary_genres[primary]['children'][secondary]['children']:
+                        primary_genres[primary]['children'][secondary]['children'][sub] = {
+                            'name': sub,
+                            'count': 0,
+                            'children': {}
+                        }
+
+                    primary_genres[primary]['children'][secondary]['children'][sub]['count'] += count
+
+                    # Add sub-sub genre
+                    if sub_sub:
+                        if sub_sub not in primary_genres[primary]['children'][secondary]['children'][sub]['children']:
+                            primary_genres[primary]['children'][secondary]['children'][sub]['children'][sub_sub] = {
+                                'name': sub_sub,
+                                'count': 0
+                            }
+
+                        primary_genres[primary]['children'][secondary]['children'][sub]['children'][sub_sub]['count'] += count
+
+        # Convert to genre wheel format
+        genre_tree = []
+        total_videos = sum(primary_data['count'] for primary_data in primary_genres.values())
+
+        for primary_name, primary_data in sorted(primary_genres.items(), key=lambda x: x[1]['count'], reverse=True):
+            # Build secondary level
+            secondary_children = []
+            for sec_name, sec_data in sorted(primary_data['children'].items(), key=lambda x: x[1]['count'], reverse=True)[:8]:
+                # Build sub level
+                sub_children = []
+                for sub_name, sub_data in sorted(sec_data['children'].items(), key=lambda x: x[1]['count'], reverse=True)[:6]:
+                    # Build sub-sub level
+                    sub_sub_children = []
+                    if 'children' in sub_data:
+                        for sub_sub_name, sub_sub_data in sorted(sub_data['children'].items(), key=lambda x: x[1]['count'], reverse=True)[:4]:
+                            sub_sub_children.append({
+                                'id': f"{primary_name}_{sec_name}_{sub_name}_{sub_sub_name}".lower().replace(' ', '_'),
+                                'name': sub_sub_name,
+                                'count': sub_sub_data['count'],
+                                'level': 4,
+                                'path': [primary_name, sec_name, sub_name, sub_sub_name]
+                            })
+
+                    sub_children.append({
+                        'id': f"{primary_name}_{sec_name}_{sub_name}".lower().replace(' ', '_'),
+                        'name': sub_name,
+                        'count': sub_data['count'],
+                        'level': 3,
+                        'path': [primary_name, sec_name, sub_name],
+                        'children': sub_sub_children if sub_sub_children else None
+                    })
+
+                secondary_children.append({
+                    'id': f"{primary_name}_{sec_name}".lower().replace(' ', '_'),
+                    'name': sec_name,
+                    'count': sec_data['count'],
+                    'level': 2,
+                    'path': [primary_name, sec_name],
+                    'children': sub_children if sub_children else None
+                })
+
+            genre_tree.append({
+                'id': primary_name.lower().replace(' ', '_'),
+                'name': primary_name,
+                'percentage': round((primary_data['count'] / total_videos) * 100),
+                'count': primary_data['count'],
+                'level': 1,
+                'path': [primary_name],
+                'children': secondary_children if secondary_children else None
+            })
+
+        return genre_tree[:6]  # Top 6 primary genres
+
+    except Exception as e:
+        print(f"Error generating hierarchical genre tree: {e}")
+        return []
+
+def create_fallback_genre_tree():
+    """Create a fallback genre tree from channels and basic categorization"""
     if not watch_history_data:
         return []
 
-    category_counts = Counter()
-    tag_counts = defaultdict(Counter)
-
+    # Create simple tree based on top channels
+    channel_counts = Counter()
     for video in watch_history_data['watch_history']:
-        # Handle categories as list or string
-        categories = video.get('categories', [])
-        if isinstance(categories, str):
-            categories = [categories]
-        elif not isinstance(categories, list):
-            categories = []
-
-        for category in categories:
-            if category:
-                category_counts[category] += 1
-
-                # Group tags by category
-                for tag in video.get('tags', []):
-                    if tag:
-                        tag_counts[category][tag] += 1
+        channel = video.get('channel') or video.get('channelTitle')
+        if channel:
+            channel_counts[channel] += 1
 
     total_videos = len(watch_history_data['watch_history'])
+
+    # Group channels by type
+    educational_channels = ['Veritasium', '3Blue1Brown', 'Kurzgesagt', 'SmarterEveryDay']
+    history_channels = ['OverSimplified', 'Crash Course', 'Extra History']
+    science_channels = ['NileRed', 'Steve1989MREInfo', 'Technology Connections']
+
     genre_tree = []
 
-    # Create nodes for each major category
-    for category, count in category_counts.most_common():
-        percentage = round((count / total_videos) * 100)
-
-        # Get top tags for this category as subcategories
-        top_tags = tag_counts[category].most_common(8)  # Top 8 tags
-        children = []
-
-        for tag, tag_count in top_tags:
-            if tag_count > 1:  # Only include tags that appear multiple times
-                children.append({
-                    'id': f"{category.lower().replace(' & ', '_').replace(' ', '_')}_{tag.replace(' ', '_')}",
-                    'name': tag.title(),
-                    'count': tag_count
-                })
-
-        # Map category to friendly names and IDs
-        category_id = category.lower().replace(' & ', '_').replace(' ', '_')
-        category_name = category
-
-        if 'science' in category.lower() and 'technology' in category.lower():
-            category_id = 'tech'
-            category_name = 'Technology & Engineering'
-        elif 'documentary' in category.lower():
-            category_id = 'documentary'
-            category_name = 'Documentaries'
+    # Education category
+    edu_count = sum(count for channel, count in channel_counts.items()
+                   if channel in educational_channels)
+    if edu_count > 0:
+        children = [{'id': f'edu_{channel.lower()}', 'name': channel, 'count': count}
+                   for channel, count in channel_counts.items()
+                   if channel in educational_channels]
 
         genre_tree.append({
-            'id': category_id,
-            'name': category_name,
-            'percentage': percentage,
-            'children': children if len(children) > 0 else None
+            'id': 'education',
+            'name': 'Educational Content',
+            'percentage': round((edu_count / total_videos) * 100),
+            'children': children
+        })
+
+    # History category
+    hist_count = sum(count for channel, count in channel_counts.items()
+                    if channel in history_channels)
+    if hist_count > 0:
+        children = [{'id': f'hist_{channel.lower()}', 'name': channel, 'count': count}
+                   for channel, count in channel_counts.items()
+                   if channel in history_channels]
+
+        genre_tree.append({
+            'id': 'history',
+            'name': 'History & Stories',
+            'percentage': round((hist_count / total_videos) * 100),
+            'children': children
+        })
+
+    # Science category
+    sci_count = sum(count for channel, count in channel_counts.items()
+                   if channel in science_channels)
+    if sci_count > 0:
+        children = [{'id': f'sci_{channel.lower()}', 'name': channel, 'count': count}
+                   for channel, count in channel_counts.items()
+                   if channel in science_channels]
+
+        genre_tree.append({
+            'id': 'science',
+            'name': 'Science & Tech',
+            'percentage': round((sci_count / total_videos) * 100),
+            'children': children
         })
 
     return genre_tree
@@ -307,7 +444,11 @@ def get_recommendations():
     educational_level = request.args.get('educational_level')
     min_duration = request.args.get('min_duration', type=int)
     max_duration = request.args.get('max_duration', type=int)
+    popularity = request.args.get('popularity', type=int)  # 0-100 slider
+    recency = request.args.get('recency', type=int)  # 0-100 slider
+    uniqueness = request.args.get('uniqueness', type=int)  # 0-100 slider
     channels = request.args.getlist('channels')
+    genre_path = request.args.getlist('genre_path')  # For genre selection
 
     # Build filters
     filters = {}
@@ -319,6 +460,14 @@ def get_recommendations():
         filters['max_duration'] = max_duration
     if channels:
         filters['channels'] = channels
+    if genre_path:
+        filters['genre_path'] = genre_path
+    if popularity is not None:
+        filters['popularity'] = popularity
+    if recency is not None:
+        filters['recency'] = recency
+    if uniqueness is not None:
+        filters['uniqueness'] = uniqueness
 
     try:
         recommendations = recommendation_engine.get_recommendations(limit, filters)

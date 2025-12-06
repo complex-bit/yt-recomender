@@ -57,18 +57,18 @@ export function UserProfile({ analytics }: UserProfileProps) {
     const avgVideoLength = analytics.total_watch_time / analytics.video_count
 
     if (avgCompletion > 0.8 && avgVideoLength > 1200) {
-      return { type: 'Deep Learner', icon: '🧠', description: 'You love in-depth, educational content' }
+      return { type: 'Deep Learner', icon: 'DL', description: 'You love in-depth, educational content' }
     }
     if (avgCompletion > 0.7) {
-      return { type: 'Focused Viewer', icon: '🎯', description: 'You watch videos from start to finish' }
+      return { type: 'Focused Viewer', icon: 'FV', description: 'You watch videos from start to finish' }
     }
     if (analytics.video_count > 20) {
-      return { type: 'Content Explorer', icon: '🔍', description: 'You enjoy discovering new topics' }
+      return { type: 'Content Explorer', icon: 'CE', description: 'You enjoy discovering new topics' }
     }
     if (avgVideoLength < 600) {
-      return { type: 'Quick Learner', icon: '⚡', description: 'You prefer bite-sized content' }
+      return { type: 'Quick Learner', icon: 'QL', description: 'You prefer bite-sized content' }
     }
-    return { type: 'Casual Viewer', icon: '😊', description: 'You enjoy a variety of content' }
+    return { type: 'Casual Viewer', icon: 'CV', description: 'You enjoy a variety of content' }
   }
 
   const viewerProfile = getViewerType()
@@ -280,25 +280,25 @@ export function UserProfile({ analytics }: UserProfileProps) {
         <CardContent>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             <div className="text-center p-4 bg-gradient-to-br from-yellow-100 to-yellow-200 rounded-lg">
-              <div className="text-3xl mb-2">🏆</div>
+              <div className="text-lg mb-2 font-bold">KS</div>
               <div className="font-medium text-sm">Knowledge Seeker</div>
               <div className="text-xs text-gray-600">10+ educational videos</div>
             </div>
 
             <div className="text-center p-4 bg-gradient-to-br from-blue-100 to-blue-200 rounded-lg">
-              <div className="text-3xl mb-2">🎯</div>
+              <div className="text-lg mb-2 font-bold">FV</div>
               <div className="font-medium text-sm">Focused Viewer</div>
               <div className="text-xs text-gray-600">80%+ completion rate</div>
             </div>
 
             <div className="text-center p-4 bg-gradient-to-br from-green-100 to-green-200 rounded-lg">
-              <div className="text-3xl mb-2">⏰</div>
+              <div className="text-lg mb-2 font-bold">TW</div>
               <div className="font-medium text-sm">Time Well Spent</div>
               <div className="text-xs text-gray-600">{formatWatchTime(analytics.total_watch_time)} watched</div>
             </div>
 
             <div className="text-center p-4 bg-gradient-to-br from-purple-100 to-purple-200 rounded-lg">
-              <div className="text-3xl mb-2">🔍</div>
+              <div className="text-lg mb-2 font-bold">EX</div>
               <div className="font-medium text-sm">Explorer</div>
               <div className="text-xs text-gray-600">{Object.keys(analytics.top_genres).length}+ topics</div>
             </div>

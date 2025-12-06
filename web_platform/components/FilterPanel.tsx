@@ -17,9 +17,11 @@ import { X, Filter } from 'lucide-react'
 
 interface FilterPanelProps {
   filters: {
-    educational_level: string
     min_duration: number
     max_duration: number
+    popularity: number
+    recency: number
+    uniqueness: number
     channels: string[]
   }
   onChange: (filters: any) => void
@@ -43,9 +45,11 @@ export function FilterPanel({ filters, onChange, analytics }: FilterPanelProps) 
 
   const clearFilters = () => {
     onChange({
-      educational_level: '',
       min_duration: 0,
       max_duration: 3600,
+      popularity: 50,
+      recency: 50,
+      uniqueness: 50,
       channels: []
     })
   }
@@ -61,9 +65,11 @@ export function FilterPanel({ filters, onChange, analytics }: FilterPanelProps) 
   }
 
   const hasActiveFilters =
-    filters.educational_level ||
     filters.min_duration > 0 ||
     filters.max_duration < 3600 ||
+    filters.popularity !== 50 ||
+    filters.recency !== 50 ||
+    filters.uniqueness !== 50 ||
     filters.channels.length > 0
 
   return (
@@ -88,86 +94,103 @@ export function FilterPanel({ filters, onChange, analytics }: FilterPanelProps) 
       </CardHeader>
 
       <CardContent className="space-y-6">
-        {/* Educational Level */}
+
+        {/* Duration */}
         <div className="space-y-3">
-          <Label className="text-sm font-medium">Educational Level</Label>
-          <Select
-            value={filters.educational_level || 'any'}
-            onValueChange={(value) => updateFilter('educational_level', value === 'any' ? '' : value)}
-          >
-            <SelectTrigger className="w-full">
-              <SelectValue placeholder="Any level" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="any">Any level</SelectItem>
-              <SelectItem value="Beginner">Beginner</SelectItem>
-              <SelectItem value="Intermediate">Intermediate</SelectItem>
-              <SelectItem value="Advanced">Advanced</SelectItem>
-              <SelectItem value="Academic">Academic</SelectItem>
-            </SelectContent>
-          </Select>
-          {filters.educational_level && filters.educational_level !== 'any' && (
+          <Label className="text-sm font-medium">Duration</Label>
+          <div className="space-y-2">
+            <div className="flex justify-between text-xs text-[#6B5B55]">
+              <span>Short</span>
+              <span>Long</span>
+            </div>
+            <Slider
+              value={[filters.max_duration]}
+              onValueChange={([value]) => updateFilter('max_duration', value)}
+              min={300}
+              max={3600}
+              step={300}
+              className="w-full"
+            />
+            <div className="text-center text-xs text-[#6B5B55]">
+              Up to {filters.max_duration >= 3600 ? '1h+' : formatDuration(filters.max_duration)}
+            </div>
+          </div>
+          {filters.max_duration < 3600 && (
             <Badge
               variant="secondary"
               className="gap-1 cursor-pointer"
-              onClick={() => updateFilter('educational_level', '')}
+              onClick={() => updateFilter('max_duration', 3600)}
             >
-              {filters.educational_level}
+              Up to {formatDuration(filters.max_duration)}
               <X className="h-3 w-3" />
             </Badge>
           )}
         </div>
 
-        {/* Duration */}
+        {/* Popularity Slider */}
         <div className="space-y-3">
-          <Label className="text-sm font-medium">Duration</Label>
-
-          <div className="space-y-4">
-            <div>
-              <Label className="text-xs text-[#6B5B55]">Minimum</Label>
-              <Slider
-                value={[filters.min_duration]}
-                onValueChange={([value]) => updateFilter('min_duration', value)}
-                max={3600}
-                step={300}
-                className="w-full"
-              />
-              <div className="text-xs text-[#6B5B55] mt-1">
-                {formatDuration(filters.min_duration)}
-              </div>
+          <Label className="text-sm font-medium">Popularity</Label>
+          <div className="space-y-2">
+            <div className="flex justify-between text-xs text-[#6B5B55]">
+              <span>Hidden Gems</span>
+              <span>Popular Hits</span>
             </div>
-
-            <div>
-              <Label className="text-xs text-[#6B5B55]">Maximum</Label>
-              <Slider
-                value={[filters.max_duration]}
-                onValueChange={([value]) => updateFilter('max_duration', value)}
-                min={300}
-                max={3600}
-                step={300}
-                className="w-full"
-              />
-              <div className="text-xs text-[#6B5B55] mt-1">
-                {filters.max_duration >= 3600 ? '1h+' : formatDuration(filters.max_duration)}
-              </div>
+            <Slider
+              value={[filters.popularity]}
+              onValueChange={([value]) => updateFilter('popularity', value)}
+              max={100}
+              step={1}
+              className="w-full"
+            />
+            <div className="text-center text-xs text-[#6B5B55]">
+              {filters.popularity < 30 ? 'Hidden Gems' :
+               filters.popularity > 70 ? 'Popular Hits' : 'Mixed Popularity'}
             </div>
           </div>
+        </div>
 
-          {(filters.min_duration > 0 || filters.max_duration < 3600) && (
-            <Badge
-              variant="secondary"
-              className="gap-1 cursor-pointer"
-              onClick={() => {
-                updateFilter('min_duration', 0)
-                updateFilter('max_duration', 3600)
-              }}
-            >
-              {formatDuration(filters.min_duration)} - {
-                filters.max_duration >= 3600 ? '1h+' : formatDuration(filters.max_duration)
-              }
-              <X className="h-3 w-3" />
-            </Badge>
-          )}
+        {/* Recency Slider */}
+        <div className="space-y-3">
+          <Label className="text-sm font-medium">Recency</Label>
+          <div className="space-y-2">
+            <div className="flex justify-between text-xs text-[#6B5B55]">
+              <span>Classic</span>
+              <span>Fresh</span>
+            </div>
+            <Slider
+              value={[filters.recency]}
+              onValueChange={([value]) => updateFilter('recency', value)}
+              max={100}
+              step={1}
+              className="w-full"
+            />
+            <div className="text-center text-xs text-[#6B5B55]">
+              {filters.recency < 30 ? 'Classic Videos' :
+               filters.recency > 70 ? 'Fresh Content' : 'Mixed Ages'}
+            </div>
+          </div>
+        </div>
+
+        {/* Uniqueness Slider */}
+        <div className="space-y-3">
+          <Label className="text-sm font-medium">Channel Discovery</Label>
+          <div className="space-y-2">
+            <div className="flex justify-between text-xs text-[#6B5B55]">
+              <span>Familiar</span>
+              <span>New Channels</span>
+            </div>
+            <Slider
+              value={[filters.uniqueness]}
+              onValueChange={([value]) => updateFilter('uniqueness', value)}
+              max={100}
+              step={1}
+              className="w-full"
+            />
+            <div className="text-center text-xs text-[#6B5B55]">
+              {filters.uniqueness < 30 ? 'Your Channels' :
+               filters.uniqueness > 70 ? 'New Channels' : 'Mixed Discovery'}
+            </div>
+          </div>
         </div>
 
         {/* Preferred Channels */}
@@ -223,22 +246,22 @@ export function FilterPanel({ filters, onChange, analytics }: FilterPanelProps) 
               size="sm"
               className="justify-start h-8 text-xs"
               onClick={() => {
-                updateFilter('educational_level', 'Beginner')
                 updateFilter('max_duration', 900) // 15 minutes
+                updateFilter('popularity', 70) // Popular content
               }}
             >
-              🌱 Quick & Easy
+              Quick & Popular
             </Button>
             <Button
               variant="outline"
               size="sm"
               className="justify-start h-8 text-xs"
               onClick={() => {
-                updateFilter('educational_level', 'Advanced')
-                updateFilter('min_duration', 1200) // 20 minutes
+                updateFilter('max_duration', 3600) // Long form
+                updateFilter('popularity', 30) // Hidden gems
               }}
             >
-              🧠 Deep Dive
+              Long & Hidden
             </Button>
             <Button
               variant="outline"
@@ -251,7 +274,7 @@ export function FilterPanel({ filters, onChange, analytics }: FilterPanelProps) 
                 }
               }}
             >
-              ❤️ Favorites Only
+              Favorites Only
             </Button>
           </div>
         </div>
@@ -261,13 +284,11 @@ export function FilterPanel({ filters, onChange, analytics }: FilterPanelProps) 
           <div className="border-t pt-4">
             <Label className="text-sm font-medium mb-2 block">Active Filters</Label>
             <div className="text-xs text-[#6B5B55] space-y-1">
-              {filters.educational_level && (
-                <div>• Level: {filters.educational_level}</div>
+              {filters.max_duration < 3600 && (
+                <div>• Duration: Up to {formatDuration(filters.max_duration)}</div>
               )}
-              {(filters.min_duration > 0 || filters.max_duration < 3600) && (
-                <div>• Duration: {formatDuration(filters.min_duration)} - {
-                  filters.max_duration >= 3600 ? '1h+' : formatDuration(filters.max_duration)
-                }</div>
+              {filters.popularity !== 50 && (
+                <div>• Popularity: {filters.popularity < 30 ? 'Hidden gems' : filters.popularity > 70 ? 'Popular hits' : 'Mixed'}</div>
               )}
               {filters.channels.length > 0 && (
                 <div>• Channels: {filters.channels.length} selected</div>

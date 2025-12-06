@@ -1,98 +1,143 @@
 {
   "user_profile": {
-    "interests": ["science", "education", "technology", "mathematics", "physics"],
-    "preferred_channels": ["Veritasium", "OverSimplified", "NileRed", "Kurzgesagt – In a Nutshell", "3Blue1Brown"]
+    "interests": ["science", "technology", "education", "nature", "politics", "philosophy", "gaming", "space", "history"],
+    "preferred_channels": ["Veritasium", "Marques Brownlee", "BBC Earth", "Vsauce", "CGP Grey", "Kurzgesagt", "TED", "Linus Tech Tips"]
   },
   "watch_history": [
-    {
-      "video_id": "j5v8D-alAKE",
-      "title": "Emu War - OverSimplified (Mini-Wars #4)",
-      "channel": "OverSimplified",
-      "watched_at": "2025-12-05T15:23:45.789Z",
-      "watch_time_seconds": 401,
-      "thumbnail": "",
-      "tags": ["oversimplified", "history", "emu war", "australia", "war", "animated", "educational", "comedy"]
-    },
-    {
-      "video_id": "dHSQAEam2yc",
-      "title": "WW1 - Oversimplified (Part 1)",
-      "channel": "OverSimplified",
-      "watched_at": "2025-12-03T08:12:34.567Z",
-      "watch_time_seconds": 154,
-      "thumbnail": "",
-      "tags": ["oversimplified", "history", "ww1", "world war 1", "educational", "animated"]
-    },
-    {
-      "video_id": "I79TpDe3t2g",
-      "title": "The Cold War - OverSimplified (Part 2)",
-      "channel": "OverSimplified",
-      "watched_at": "2025-12-01T19:45:12.345Z",
-      "watch_time_seconds": 866,
-      "thumbnail": "",
-      "tags": ["oversimplified", "history", "cold war", "educational", "animated"]
-    },
-    {
-      "video_id": "fo2Rb9h788s",
-      "title": "WW2 - OverSimplified (Part 2)",
-      "channel": "OverSimplified",
-      "watched_at": "2025-11-26T14:30:21.123Z",
-      "watch_time_seconds": 839,
-      "thumbnail": "",
-      "tags": ["oversimplified", "history", "ww2", "world war 2", "educational", "animated"]
-    },
-    {
-      "video_id": "X24np30GS2o",
-      "title": "Making aerogel",
-      "channel": "NileRed",
-      "watched_at": "2025-11-24T11:18:56.789Z",
-      "watch_time_seconds": 2018,
-      "thumbnail": "",
-      "tags": ["nilered", "chemistry", "aerogel", "science", "experiment", "materials"]
-    },
     {
       "video_id": "LjQM8PzCEY0",
       "title": "Something Strange Happens When You Follow Einstein's Math",
       "channel": "Veritasium",
-      "watched_at": "2025-11-22T16:42:33.456Z",
+      "watched_at": "2025-12-05T16:42:33.456Z",
       "watch_time_seconds": 1632,
       "thumbnail": "",
       "tags": ["veritasium", "science", "physics", "general relativity", "einstein", "astrophysics", "black holes", "math"]
     },
     {
-      "video_id": "vM9Qgpv0r74",
-      "title": "How One Company Secretly Poisoned The Planet",
-      "channel": "Veritasium",
-      "watched_at": "2025-11-20T09:15:47.234Z",
-      "watch_time_seconds": 1423,
+      "video_id": "iPhone17ProAir",
+      "title": "iPhone 17/Pro/Air Impressions: Spot the Red Flags!",
+      "channel": "Marques Brownlee",
+      "watched_at": "2025-12-05T14:23:45.789Z",
+      "watch_time_seconds": 842,
       "thumbnail": "",
-      "tags": ["veritasium", "science", "physics", "teflon", "nonstick pan", "teflon don", "chemistry", "teflon hazards", "corporate", "environment"]
+      "tags": ["technology", "iphone", "review", "mobile", "tech", "apple", "smartphone", "gadgets"]
     },
     {
-      "video_id": "zRP82omMX0g",
-      "title": "Can you keep zooming in forever?",
-      "channel": "Veritasium",
-      "watched_at": "2025-11-18T13:27:19.678Z",
-      "watch_time_seconds": 1156,
+      "video_id": "BBC1Hour",
+      "title": "1 Hour of Incredible Animals Narrated by David Attenborough",
+      "channel": "BBC Earth",
+      "watched_at": "2025-12-04T19:15:22.345Z",
+      "watch_time_seconds": 2134,
       "thumbnail": "",
-      "tags": ["veritasium", "science", "physics"]
+      "tags": ["nature", "animals", "documentary", "david attenborough", "wildlife", "earth", "ecosystem", "biology"]
     },
     {
-      "video_id": "dQPdcaGpU9U",
-      "title": "How a Student's Question Saved This NYC Skyscraper",
-      "channel": "Veritasium",
-      "watched_at": "2025-11-15T20:33:28.901Z",
-      "watch_time_seconds": 1089,
+      "video_id": "VSaucePower",
+      "title": "The Power of Suggestion",
+      "channel": "Vsauce",
+      "watched_at": "2025-12-03T11:30:17.123Z",
+      "watch_time_seconds": 1456,
       "thumbnail": "",
-      "tags": ["veritasium", "science", "physics", "Veritasium", "engineering", "Citicorp building", "citicorp tower", "structural engineering", "skyscraper"]
+      "tags": ["vsauce", "psychology", "philosophy", "science", "mind", "consciousness", "education", "research"]
     },
     {
-      "video_id": "Kih85oChVXA",
-      "title": "How Japanese Masters Turn Sand Into Swords",
-      "channel": "Veritasium",
-      "watched_at": "2025-11-12T07:51:14.567Z",
-      "watch_time_seconds": 1567,
+      "video_id": "CGPFlags",
+      "title": "DOES YOUR FLAG FAIL? Grey Grades State Flags!",
+      "channel": "CGP Grey",
+      "watched_at": "2025-12-02T15:45:33.567Z",
+      "watch_time_seconds": 987,
       "thumbnail": "",
-      "tags": ["veritasium", "science", "physics", "katanas", "japanese swords", "sword making", "samurai swords"]
+      "tags": ["cgp grey", "politics", "flags", "design", "government", "states", "civics", "vexillology"]
+    },
+    {
+      "video_id": "KurzSouthKorea",
+      "title": "SOUTH KOREA IS OVER",
+      "channel": "Kurzgesagt – In a Nutshell",
+      "watched_at": "2025-12-01T09:22:11.234Z",
+      "watch_time_seconds": 734,
+      "thumbnail": "",
+      "tags": ["kurzgesagt", "south korea", "demographics", "society", "economics", "population", "future", "analysis"]
+    },
+    {
+      "video_id": "TEDReading",
+      "title": "The Art of Reading Minds | Oz Pearlman | TED",
+      "channel": "TED",
+      "watched_at": "2025-11-30T13:17:44.678Z",
+      "watch_time_seconds": 1123,
+      "thumbnail": "",
+      "tags": ["ted", "psychology", "mentalism", "communication", "performance", "human behavior", "talks"]
+    },
+    {
+      "video_id": "LinusValve",
+      "title": "Valve's New Console and Controller - STEAM Machine & STEAM Controller (2026) First Look",
+      "channel": "Linus Tech Tips",
+      "watched_at": "2025-11-29T20:33:28.901Z",
+      "watch_time_seconds": 1289,
+      "thumbnail": "",
+      "tags": ["gaming", "steam", "valve", "console", "controller", "pc gaming", "technology", "hardware"]
+    },
+    {
+      "video_id": "X24np30GS2o",
+      "title": "Turning old jewelry into pure gold bars",
+      "channel": "NileRed",
+      "watched_at": "2025-11-28T16:18:56.789Z",
+      "watch_time_seconds": 2018,
+      "thumbnail": "",
+      "tags": ["nilered", "chemistry", "gold", "science", "experiment", "materials", "refining", "metals"]
+    },
+    {
+      "video_id": "j5v8D-alAKE",
+      "title": "WW2 - OverSimplified (Part 1)",
+      "channel": "OverSimplified",
+      "watched_at": "2025-11-27T12:23:45.789Z",
+      "watch_time_seconds": 1401,
+      "thumbnail": "",
+      "tags": ["oversimplified", "history", "ww2", "world war 2", "educational", "animated", "military", "politics"]
+    },
+    {
+      "video_id": "AsapPi",
+      "title": "The Pi Song 2.0 (Memorize 200 Digits Of π)",
+      "channel": "AsapSCIENCE",
+      "watched_at": "2025-11-26T08:45:12.345Z",
+      "watch_time_seconds": 312,
+      "thumbnail": "",
+      "tags": ["asapscience", "mathematics", "pi", "education", "science", "math", "memory", "learning"]
+    },
+    {
+      "video_id": "SpaceXSN5",
+      "title": "Starship | SN5 | 150m Flight Test",
+      "channel": "SpaceX",
+      "watched_at": "2025-11-25T14:27:33.567Z",
+      "watch_time_seconds": 456,
+      "thumbnail": "",
+      "tags": ["spacex", "starship", "space", "rocket", "engineering", "flight test", "aerospace", "technology"]
+    },
+    {
+      "video_id": "CrashCourse1",
+      "title": "The Secret Language of Cults: Crash Course Lecture",
+      "channel": "CrashCourse",
+      "watched_at": "2025-11-24T11:12:19.123Z",
+      "watch_time_seconds": 978,
+      "thumbnail": "",
+      "tags": ["crashcourse", "psychology", "sociology", "cults", "education", "human behavior", "society"]
+    },
+    {
+      "video_id": "NatGeo1",
+      "title": "Incredible Ocean Creatures Caught on Camera",
+      "channel": "National Geographic",
+      "watched_at": "2025-11-23T17:55:41.456Z",
+      "watch_time_seconds": 1345,
+      "thumbnail": "",
+      "tags": ["national geographic", "ocean", "marine life", "documentary", "nature", "underwater", "wildlife"]
+    },
+    {
+      "video_id": "TechLinked1",
+      "title": "AI Just Got SCARY Good at This...",
+      "channel": "TechLinked",
+      "watched_at": "2025-11-22T10:33:17.789Z",
+      "watch_time_seconds": 623,
+      "thumbnail": "",
+      "tags": ["technology", "ai", "artificial intelligence", "tech news", "innovation", "machine learning"]
     }
   ]
 }

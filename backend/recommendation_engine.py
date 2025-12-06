@@ -130,14 +130,25 @@ class RecommendationEngine:
             placeholders = ','.join('?' for _ in self.watched_video_ids) if self.watched_video_ids else "''"
 
             query = f'''
-                SELECT v.video_id, v.title, v.channel_title, v.description,
+                SELECT DISTINCT v.video_id, v.title, v.channel_title, v.description,
                        v.thumbnail, v.duration, v.view_count, v.like_count,
                        v.published_at, v.tags, v.categories,
                        vg.primary_genre, vg.secondary_genre, vg.sub_genre,
                        vg.content_type, vg.educational_level, vg.target_audience,
                        vg.confidence_score
                 FROM videos v
-                LEFT JOIN video_genres vg ON v.video_id = vg.video_id
+                LEFT JOIN (
+                    SELECT video_id,
+                           MAX(primary_genre) as primary_genre,
+                           MAX(secondary_genre) as secondary_genre,
+                           MAX(sub_genre) as sub_genre,
+                           MAX(content_type) as content_type,
+                           MAX(educational_level) as educational_level,
+                           MAX(target_audience) as target_audience,
+                           AVG(confidence_score) as confidence_score
+                    FROM video_genres
+                    GROUP BY video_id
+                ) vg ON v.video_id = vg.video_id
                 WHERE v.video_id NOT IN ({placeholders})
                 ORDER BY v.view_count DESC
                 LIMIT 100
@@ -303,6 +314,78 @@ class RecommendationEngine:
             allowed_channels = filters['channels']
             filtered_videos = [v for v in filtered_videos
                              if v.get('channel') in allowed_channels]
+
+        # Genre path filter (from genre wheel selection)
+        if 'genre_path' in filters and filters['genre_path']:
+            genre_path = filters['genre_path']
+            if len(genre_path) >= 1:  # Primary genre
+                filtered_videos = [v for v in filtered_videos
+                                 if v.get('genres', {}).get('primary') == genre_path[0]]
+            if len(genre_path) >= 2:  # Secondary genre
+                filtered_videos = [v for v in filtered_videos
+                                 if v.get('genres', {}).get('secondary') == genre_path[1]]
+            if len(genre_path) >= 3:  # Sub genre
+                filtered_videos = [v for v in filtered_videos
+                                 if v.get('genres', {}).get('sub') == genre_path[2]]
+
+        # Popularity filter (0-100 slider)
+        if 'popularity' in filters:
+            popularity_val = filters['popularity']
+            if popularity_val < 30:  # Hidden gems (low views)
+                filtered_videos = [v for v in filtered_videos if v.get('view_count', 0) < 100000]
+            elif popularity_val > 70:  # Popular hits (high views)
+                filtered_videos = [v for v in filtered_videos if v.get('view_count', 0) > 1000000]
+            # Middle range (30-70) shows all
+
+        # Recency filter (0-100 slider)
+        if 'recency' in filters:
+            from datetime import datetime, timedelta
+            recency_val = filters['recency']
+
+            # Sort by published date and filter
+            try:
+                videos_with_dates = []
+                for v in filtered_videos:
+                    if v.get('published_at'):
+                        try:
+                            # Parse ISO date
+                            pub_date = datetime.fromisoformat(v['published_at'].replace('Z', '+00:00'))
+                            videos_with_dates.append((v, pub_date))
+                        except:
+                            videos_with_dates.append((v, datetime.min))
+                    else:
+                        videos_with_dates.append((v, datetime.min))
+
+                # Sort by date
+                videos_with_dates.sort(key=lambda x: x[1], reverse=True)
+
+                if recency_val < 30:  # Classic videos (older)
+                    # Take bottom 70% (older videos)
+                    start_idx = int(len(videos_with_dates) * 0.3)
+                    filtered_videos = [v[0] for v in videos_with_dates[start_idx:]]
+                elif recency_val > 70:  # Fresh videos (newer)
+                    # Take top 30% (newer videos)
+                    end_idx = int(len(videos_with_dates) * 0.3)
+                    filtered_videos = [v[0] for v in videos_with_dates[:end_idx]]
+                else:
+                    # Middle range shows all
+                    filtered_videos = [v[0] for v in videos_with_dates]
+            except:
+                # If date parsing fails, keep original list
+                pass
+
+        # Uniqueness filter (0-100 slider)
+        if 'uniqueness' in filters:
+            uniqueness_val = filters['uniqueness']
+            user_channels = set(self.user_preferences.get('channel_preferences', {}).keys())
+
+            if uniqueness_val < 30:  # Familiar channels (channels you've watched)
+                filtered_videos = [v for v in filtered_videos
+                                 if v.get('channel') in user_channels]
+            elif uniqueness_val > 70:  # New channels (channels you haven't watched)
+                filtered_videos = [v for v in filtered_videos
+                                 if v.get('channel') not in user_channels]
+            # Middle range (30-70) shows mix of both
 
         return filtered_videos
 
