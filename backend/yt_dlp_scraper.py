@@ -42,16 +42,16 @@ class YouTubeDLPScraper:
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 video_id TEXT UNIQUE NOT NULL,
                 title TEXT NOT NULL,
-                description TEXT,
+                description TEXT,  -- Full video description
                 channel_id TEXT NOT NULL,
                 channel_title TEXT NOT NULL,
                 channel_url TEXT,
                 channel_subscriber_count INTEGER,
-                published_at TEXT NOT NULL,
-                duration INTEGER,  -- in seconds
-                view_count INTEGER,
-                like_count INTEGER,
-                comment_count INTEGER,
+                published_at TEXT DEFAULT CURRENT_TIMESTAMP,
+                duration INTEGER DEFAULT 0,  -- in seconds
+                view_count INTEGER DEFAULT 0,
+                like_count INTEGER DEFAULT 0,
+                comment_count INTEGER DEFAULT 0,
                 thumbnail TEXT,
                 tags TEXT,  -- JSON string
                 categories TEXT,  -- JSON string
@@ -72,12 +72,32 @@ class YouTubeDLPScraper:
             )
         ''')
 
+        # Clean up any existing data issues
+        try:
+            # Fix any NULL published_at values in existing data
+            current_time = datetime.now().isoformat()
+            cursor.execute('''
+                UPDATE videos
+                SET published_at = ?
+                WHERE published_at IS NULL OR published_at = ''
+            ''', (current_time,))
+
+            rows_updated = cursor.rowcount
+            if rows_updated > 0:
+                print(f"    Fixed {rows_updated} videos with missing published_at dates")
+
+        except sqlite3.Error as e:
+            print(f"    Warning: Could not fix existing data: {e}")
+
         conn.commit()
         conn.close()
 
     def scrape_channel(self, channel_url: str, max_videos: int = 50, delay: float = 1.0) -> bool:
         """Scrape a YouTube channel using yt-dlp."""
         print(f"Scraping channel: {channel_url}")
+
+        # Use /videos URL directly as it almost always has the most content
+        videos_url = channel_url + '/videos' if not channel_url.endswith('/videos') else channel_url
 
         # yt-dlp options
         ydl_opts = {
@@ -105,13 +125,13 @@ class YouTubeDLPScraper:
                 if channel_data:
                     self.save_channel_to_db(channel_data)
 
-                # Get videos from the channel
-                print(f"  Getting up to {max_videos} videos...")
+                # Get videos from the /videos page
+                print(f"  Getting up to {max_videos} videos from /videos page...")
 
                 # Extract videos with full info
                 ydl_opts['extract_flat'] = False
                 with yt_dlp.YoutubeDL(ydl_opts) as ydl_full:
-                    info = ydl_full.extract_info(channel_url, download=False)
+                    info = ydl_full.extract_info(videos_url, download=False)
 
                     if 'entries' in info:
                         videos = []
@@ -133,10 +153,11 @@ class YouTubeDLPScraper:
                         print(f"  💾 Saving {len(videos)} videos to database...")
                         self.save_videos_to_db(videos)
 
-                        print(f"  ✅ Successfully scraped {len(videos)} videos from {channel_data.get('channel_title', 'Unknown')}")
+                        channel_name = channel_data.get('channel_title', 'Unknown') if channel_data else 'Unknown'
+                        print(f"  ✅ Successfully scraped {len(videos)} videos from {channel_name}")
                         return True
                     else:
-                        print("  ❌ No videos found in channel")
+                        print("  ❌ No videos found in /videos page")
                         return False
 
         except Exception as e:
@@ -165,18 +186,31 @@ class YouTubeDLPScraper:
             # Parse upload date
             upload_date = info.get('upload_date')
             if upload_date:
-                # Convert YYYYMMDD to ISO format
-                upload_date = f"{upload_date[:4]}-{upload_date[4:6]}-{upload_date[6:8]}T00:00:00Z"
+                try:
+                    # Convert YYYYMMDD to ISO format
+                    upload_date = f"{upload_date[:4]}-{upload_date[4:6]}-{upload_date[6:8]}T00:00:00Z"
+                except:
+                    # If date parsing fails, use current date
+                    upload_date = datetime.now().isoformat()
+            else:
+                # If no upload date, use current date as fallback
+                upload_date = datetime.now().isoformat()
+
+            # Ensure we have a video ID
+            video_id = info.get('id')
+            if not video_id:
+                print(f"    Skipping video without ID")
+                return None
 
             return {
-                'video_id': info.get('id'),
+                'video_id': video_id,
                 'title': info.get('title', 'Unknown'),
                 'description': info.get('description') or '',
                 'channel_id': info.get('channel_id') or info.get('uploader_id') or 'unknown',
                 'channel_title': info.get('channel') or info.get('uploader') or 'Unknown',
                 'channel_url': info.get('channel_url') or '',
                 'channel_subscriber_count': info.get('channel_follower_count') or 0,
-                'published_at': upload_date,
+                'published_at': upload_date,  # Now guaranteed to have a value
                 'duration': info.get('duration') or 0,
                 'view_count': info.get('view_count') or 0,
                 'like_count': info.get('like_count') or 0,
@@ -227,37 +261,52 @@ class YouTubeDLPScraper:
         conn = sqlite3.connect(self.db_path)
         cursor = conn.cursor()
 
+        saved_count = 0
+        skipped_count = 0
+
         for video in videos:
-            if not video.get('video_id'):
+            # Skip videos without required fields
+            if not video.get('video_id') or not video.get('published_at'):
+                skipped_count += 1
                 continue
 
-            cursor.execute('''
-                INSERT OR REPLACE INTO videos
-                (video_id, title, description, channel_id, channel_title, channel_url,
-                 channel_subscriber_count, published_at, duration, view_count, like_count,
-                 comment_count, thumbnail, tags, categories, scraped_at)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            ''', (
-                video['video_id'],
-                video['title'],
-                video['description'],
-                video['channel_id'],
-                video['channel_title'],
-                video['channel_url'],
-                video['channel_subscriber_count'],
-                video['published_at'],
-                video['duration'],
-                video['view_count'],
-                video['like_count'],
-                video['comment_count'],
-                video['thumbnail'],
-                video['tags'],
-                video['categories'],
-                video['scraped_at']
-            ))
+            try:
+                cursor.execute('''
+                    INSERT OR REPLACE INTO videos
+                    (video_id, title, description, channel_id, channel_title, channel_url,
+                     channel_subscriber_count, published_at, duration, view_count, like_count,
+                     comment_count, thumbnail, tags, categories, scraped_at)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ''', (
+                    video['video_id'],
+                    video['title'],
+                    video['description'],
+                    video['channel_id'],
+                    video['channel_title'],
+                    video['channel_url'],
+                    video['channel_subscriber_count'],
+                    video['published_at'],
+                    video['duration'],
+                    video['view_count'],
+                    video['like_count'],
+                    video['comment_count'],
+                    video['thumbnail'],
+                    video['tags'],
+                    video['categories'],
+                    video['scraped_at']
+                ))
+                saved_count += 1
+
+            except sqlite3.Error as e:
+                print(f"    Database error for video {video.get('video_id', 'unknown')}: {e}")
+                skipped_count += 1
+                continue
 
         conn.commit()
         conn.close()
+
+        if skipped_count > 0:
+            print(f"    ⚠️  Saved {saved_count} videos, skipped {skipped_count} videos with missing data")
 
     def scrape_multiple_channels(self, channels: List[str], max_videos_per_channel: int = 50, delay: float = 2.0):
         """Scrape multiple channels."""

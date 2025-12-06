@@ -1,6 +1,7 @@
 "use client"
 
 import { motion } from "framer-motion"
+import { useState } from "react"
 import type { TopChannel } from "@/lib/api"
 
 interface ChannelIconProps {
@@ -9,6 +10,7 @@ interface ChannelIconProps {
 }
 
 export function ChannelIcon({ channel, delay = 0 }: ChannelIconProps) {
+  const [imageError, setImageError] = useState(false)
   return (
     <motion.div
       initial={{ opacity: 0, scale: 0, rotate: -180 }}

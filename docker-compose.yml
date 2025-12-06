@@ -1,0 +1,80 @@
+version: '3.8'
+
+services:
+  # Backend Flask API
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: whyexplore-backend
+    ports:
+      - "5000:5000"
+    volumes:
+      - ./data:/app/data
+      - ./backend/channels_list.txt:/app/channels_list.txt:ro
+    environment:
+      - FLASK_ENV=production
+      - FLASK_HOST=0.0.0.0
+      - FLASK_PORT=5000
+      - DATABASE_PATH=/app/data/youtube_videos.db
+      - CORS_ORIGINS=http://localhost:3000,http://frontend:3000
+    networks:
+      - whyexplore-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # Frontend Next.js App
+  frontend:
+    build:
+      context: ./web_platform
+      dockerfile: Dockerfile
+    container_name: whyexplore-frontend
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      - NEXT_PUBLIC_API_URL=http://localhost:5000
+      - NEXT_TELEMETRY_DISABLED=1
+    depends_on:
+      backend:
+        condition: service_healthy
+    networks:
+      - whyexplore-network
+    restart: unless-stopped
+
+  # YouTube Scraper (run separately)
+  scraper:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: whyexplore-scraper
+    volumes:
+      - ./data:/app/data
+      - ./backend/channels_list.txt:/app/channels_list.txt:ro
+    environment:
+      - DATABASE_PATH=/app/data/youtube_videos.db
+    command: >
+      sh -c "echo 'Starting YouTube scraper...' &&
+             python yt_dlp_scraper.py --channels-file channels_list.txt --max-videos 50 --delay 2.0 --export /app/data/scraped_data.json &&
+             echo 'Scraping completed!' &&
+             python yt_dlp_scraper.py --stats"
+    networks:
+      - whyexplore-network
+    profiles:
+      - scraper  # Only run when explicitly requested
+    restart: "no"  # Don't restart scraper automatically
+
+# Networks
+networks:
+  whyexplore-network:
+    driver: bridge
+
+# Volumes
+volumes:
+  data:
+    driver: local
