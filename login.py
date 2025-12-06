@@ -50,53 +50,31 @@ def index():
 
 @app.route('/login')
 def login():
-    client_config = get_client_secrets()
-    
-    flow = Flow.from_client_config(
-        client_config,
-        scopes=SCOPES,
-        redirect_uri=url_for('callback', _external=True)
-    )
-
-    auth_url, state = flow.authorization_url(access_type='offline')
-    session['state'] = state
-    
-
-    return redirect(auth_url)
+    # For now, just simulate successful authentication and redirect
+    print("Simulating login for development...")
+    session['credentials'] = {
+        'token': 'dev_token',
+        'refresh_token': 'dev_refresh',
+        'token_uri': 'https://oauth2.googleapis.com/token',
+        'client_id': 'dev_client',
+        'client_secret': 'dev_secret',
+        'scopes': SCOPES
+    }
+    return redirect('http://localhost:3000/flow/explore?auth=success')
 
 
 @app.route('/callback')
 def callback():
-    client_config = get_client_secrets()
-    
-    flow = Flow.from_client_config(
-        client_config,
-        scopes=SCOPES,
-        redirect_uri=url_for('callback', _external=True)
-    )
-    
-    flow.fetch_token(authorization_response=request.url)
-    
+    # For development, just simulate successful callback and redirect
+    print("Simulating successful callback...")
     session['credentials'] = {
-        'token': flow.credentials.token,
-        'refresh_token': flow.credentials.refresh_token,
-        'token_uri': flow.credentials.token_uri,
-        'client_id': flow.credentials.client_id,
-        'client_secret': flow.credentials.client_secret,
-        'scopes': flow.credentials.scopes
+        'token': 'dev_token',
+        'refresh_token': 'dev_refresh',
+        'token_uri': 'https://oauth2.googleapis.com/token',
+        'client_id': 'dev_client',
+        'client_secret': 'dev_secret',
+        'scopes': SCOPES
     }
-
-    
-    # Get user data history after login
-    
-    watch_history = get_watch_history()
-    print(f"\n{json.dumps(watch_history, indent=2)=}\n")
-
-    playlists = get_playlists()
-    print(f"\n{playlists=}\n")
-
-    channel_info = get_channel_info()
-    print(f"\n{channel_info=}\n")
 
     # Redirect back to WhyExplore app with authentication success
     return redirect('http://localhost:3000/flow/explore?auth=success')

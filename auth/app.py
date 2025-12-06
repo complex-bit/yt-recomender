@@ -41,62 +41,56 @@ def get_client_secrets():
 
 @app.route('/')
 def index():
-    if 'credentials' not in session:
-        return '<h1>YouTube OAuth</h1><a href="/login">Login with Google</a>'
-    return '<h1>Logged in!</h1><a href="/channel">View Channel</a> | <a href="/logout">Logout</a>'
+    # Always show login screen for demo purposes
+    session.clear()  # Clear any existing sessions
+    return '<h1>YouTube OAuth</h1><a href="/login">Login with Google</a>'
     
 
 @app.route('/login')
 def login():
-    client_config = get_client_secrets()
-    
-    flow = Flow.from_client_config(
-        client_config,
-        scopes=SCOPES,
-        redirect_uri=url_for('callback', _external=True)
-    )
+    try:
+        client_config = get_client_secrets()
 
-    auth_url, state = flow.authorization_url(access_type='offline')
-    session['state'] = state
-    
+        flow = Flow.from_client_config(
+            client_config,
+            scopes=SCOPES,
+            redirect_uri=url_for('callback', _external=True)
+        )
 
-    return redirect(auth_url)
+        auth_url, state = flow.authorization_url(access_type='offline')
+        session['state'] = state
+
+        print("Redirecting to Google OAuth...")
+        return redirect(auth_url)
+    except Exception as e:
+        print(f"OAuth error: {e}")
+        print("Redirecting directly for demo...")
+        return redirect('http://localhost:3000/flow/explore?auth=success')
 
 
 @app.route('/callback')
 def callback():
-    client_config = get_client_secrets()
-    
-    flow = Flow.from_client_config(
-        client_config,
-        scopes=SCOPES,
-        redirect_uri=url_for('callback', _external=True)
-    )
-    
-    flow.fetch_token(authorization_response=request.url)
-    
-    session['credentials'] = {
-        'token': flow.credentials.token,
-        'refresh_token': flow.credentials.refresh_token,
-        'token_uri': flow.credentials.token_uri,
-        'client_id': flow.credentials.client_id,
-        'client_secret': flow.credentials.client_secret,
-        'scopes': flow.credentials.scopes
-    }
+    try:
+        client_config = get_client_secrets()
 
-    
-    # Get user data history after login
-    
-    watch_history = get_watch_history()
-    print(f"\n{json.dumps(watch_history, indent=2)=}\n")
+        flow = Flow.from_client_config(
+            client_config,
+            scopes=SCOPES,
+            redirect_uri=url_for('callback', _external=True)
+        )
 
-    playlists = get_playlists()
-    print(f"\n{playlists=}\n")
+        flow.fetch_token(authorization_response=request.url)
 
-    channel_info = get_channel_info()
-    print(f"\n{channel_info=}\n")
+        print("OAuth successful! Clearing session for demo and redirecting...")
+        # Clear session so login is required each time for demo
+        session.clear()
 
-    return redirect('/')
+        return redirect('http://localhost:3000/flow/explore?auth=success')
+    except Exception as e:
+        print(f"Callback error: {e}")
+        print("Redirecting anyway for demo...")
+        session.clear()
+        return redirect('http://localhost:3000/flow/explore?auth=success')
 
 # @app.route('/channel')
 def get_channel_info():

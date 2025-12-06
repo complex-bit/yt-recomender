@@ -740,41 +740,7 @@ def get_user_profile():
                 ]
             })
 
-        # History category
-        hist_channels = ['OverSimplified', 'CGP Grey']
-        hist_count = sum(count for channel, count in channel_counts.items()
-                        if any(hist_ch in channel for hist_ch in hist_channels))
-
-        if hist_count > 0:
-            genre_tree.append({
-                'id': 'history',
-                'name': 'News & Politics',
-                'percentage': round((hist_count / total_videos) * 100),
-                'level': 1,
-                'path': ['News & Politics'],
-                'children': [
-                    {
-                        'id': 'history_wars',
-                        'name': 'Wars & Conflicts',
-                        'level': 2,
-                        'path': ['News & Politics', 'Wars & Conflicts'],
-                        'children': [
-                            {'id': 'history_wars_ww2', 'name': 'World War II', 'level': 3, 'path': ['News & Politics', 'Wars & Conflicts', 'World War II']},
-                            {'id': 'history_wars_coldwar', 'name': 'Cold War', 'level': 3, 'path': ['News & Politics', 'Wars & Conflicts', 'Cold War']}
-                        ]
-                    },
-                    {
-                        'id': 'history_civics',
-                        'name': 'Politics & Civics',
-                        'level': 2,
-                        'path': ['News & Politics', 'Politics & Civics'],
-                        'children': [
-                            {'id': 'history_civics_government', 'name': 'Government Systems', 'level': 3, 'path': ['News & Politics', 'Politics & Civics', 'Government Systems']},
-                            {'id': 'history_civics_geography', 'name': 'Political Geography', 'level': 3, 'path': ['News & Politics', 'Politics & Civics', 'Political Geography']}
-                        ]
-                    }
-                ]
-            })
+        # News & Politics removed due to insufficient videos (only 2 videos)
 
     return jsonify({
         'topChannels': top_channels,
