@@ -3,12 +3,12 @@
 import { useState } from "react"
 import { ChevronDown, ChevronRight, Film } from "lucide-react"
 import { cn } from "@/lib/utils"
-import type { GenreNode as GenreNodeType } from "@/lib/dummy-data"
+import type { GenreTreeNode } from "@/lib/api"
 
 interface GenreNodeProps {
-  node: GenreNodeType
+  node: GenreTreeNode
   level?: number
-  onSelect?: (node: GenreNodeType) => void
+  onSelect?: (node: GenreTreeNode) => void
 }
 
 const levelColors = [

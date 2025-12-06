@@ -12,6 +12,7 @@ services:
     volumes:
       - ./data:/app/data
       - ./backend/channels_list.txt:/app/channels_list.txt:ro
+      - ./youtube_watch_history.json:/app/youtube_watch_history.json:ro
     environment:
       - FLASK_ENV=production
       - FLASK_HOST=0.0.0.0

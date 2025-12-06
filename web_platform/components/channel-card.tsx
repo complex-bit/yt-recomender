@@ -1,6 +1,6 @@
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
-import type { TopChannel } from "@/lib/dummy-data"
+import type { TopChannel } from "@/lib/api"
 
 interface ChannelCardProps {
   channel: TopChannel

@@ -15,7 +15,15 @@ def load_watch_history():
     """Load watch history from JSON file on startup"""
     global watch_history_data
     try:
-        json_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'youtube_watch_history.json')
+        # Try Docker path first, then local development path
+        docker_path = '/app/youtube_watch_history.json'
+        local_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'youtube_watch_history.json')
+
+        if os.path.exists(docker_path):
+            json_path = docker_path
+        else:
+            json_path = local_path
+
         with open(json_path, 'r') as file:
             watch_history_data = json.load(file)
         print(f"Loaded {len(watch_history_data['watch_history'])} videos from watch history")
@@ -37,9 +45,14 @@ def analyze_top_channels():
 
         # Store channel info (take the latest one)
         if channel_id not in channel_info:
+            # Use the first category if it's a list, otherwise use the string
+            category = video.get('categories', ['Unknown'])
+            if isinstance(category, list):
+                category = category[0] if category else 'Unknown'
+
             channel_info[channel_id] = {
                 'channelTitle': video['channelTitle'],
-                'category': video['category'],
+                'category': category,
                 'channelAvatar': video.get('channelAvatar')
             }
 
@@ -71,7 +84,18 @@ def analyze_genre_percentages():
     total_videos = len(watch_history_data['watch_history'])
 
     for video in watch_history_data['watch_history']:
-        category_counts[video['category']] += 1
+        # Handle categories as list or string
+        categories = video.get('categories', [])
+        if isinstance(categories, str):
+            categories = [categories]
+        elif not isinstance(categories, list):
+            categories = []
+
+        # Count each category
+        for category in categories:
+            if category:
+                category_counts[category] += 1
+
         # Also count tags for more granular analysis
         for tag in video.get('tags', []):
             tag_counts[tag] += 1
@@ -102,12 +126,21 @@ def generate_dynamic_genre_tree():
     tag_counts = defaultdict(Counter)
 
     for video in watch_history_data['watch_history']:
-        category = video['category']
-        category_counts[category] += 1
+        # Handle categories as list or string
+        categories = video.get('categories', [])
+        if isinstance(categories, str):
+            categories = [categories]
+        elif not isinstance(categories, list):
+            categories = []
 
-        # Group tags by category
-        for tag in video.get('tags', []):
-            tag_counts[category][tag] += 1
+        for category in categories:
+            if category:
+                category_counts[category] += 1
+
+                # Group tags by category
+                for tag in video.get('tags', []):
+                    if tag:
+                        tag_counts[category][tag] += 1
 
     total_videos = len(watch_history_data['watch_history'])
     genre_tree = []
@@ -176,15 +209,22 @@ def search_videos():
     # Start with all videos
     videos = watch_history_data['watch_history'].copy()
 
-    # Filter by search query (title, tags, channel)
+    # Filter by search query (title, tags, channel, description)
     if search_query:
         filtered_videos = []
         for video in videos:
             title_match = search_query in video['title'].lower()
-            tag_match = any(search_query in tag.lower() for tag in video['tags'])
+            description_match = search_query in video.get('description', '').lower()
             channel_match = search_query in video['channelTitle'].lower()
 
-            if title_match or tag_match or channel_match:
+            # Handle tags as list
+            tags = video.get('tags', [])
+            if isinstance(tags, list):
+                tag_match = any(search_query in tag.lower() for tag in tags if tag)
+            else:
+                tag_match = False
+
+            if title_match or tag_match or channel_match or description_match:
                 filtered_videos.append(video)
         videos = filtered_videos
 
@@ -203,8 +243,21 @@ def search_videos():
         if last_genre:
             filtered_videos = []
             for video in videos:
-                category_match = last_genre in video['category'].lower()
-                tag_match = any(last_genre in tag.lower() for tag in video['tags'])
+                # Handle categories as list
+                categories = video.get('categories', [])
+                if isinstance(categories, str):
+                    categories = [categories]
+                elif not isinstance(categories, list):
+                    categories = []
+
+                category_match = any(last_genre in category.lower() for category in categories if category)
+
+                # Handle tags as list
+                tags = video.get('tags', [])
+                if isinstance(tags, list):
+                    tag_match = any(last_genre in tag.lower() for tag in tags if tag)
+                else:
+                    tag_match = False
 
                 if category_match or tag_match:
                     filtered_videos.append(video)
