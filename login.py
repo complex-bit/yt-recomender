@@ -124,14 +124,6 @@ def get_channel_info():
     }
         
     return {'channel_info': channel_data} 
-    """
-    return f'''
-    <h1>{channel['snippet']['title']}</h1>
-    <p>Subscribers: {channel['statistics'].get('subscriberCount', 'Hidden')}</p>
-    <p>Views: {channel['statistics']['viewCount']}</p>
-    <p><a href="/">Home</a></p>
-    '''
-    """
 
 # @app.route('/playlists')
 def get_playlists():
@@ -150,24 +142,6 @@ def get_playlists():
     ).execute()
     
     # html = '<h1>Your Playlists</h1>'
-    """
-    if not response.get('items'):
-        print("No playlists found")
-          
-        html += '<p>No playlists found.</p>'
-    else:
-        return
-        html += '<ul>'
-        for item in response['items']:
-            title = item['snippet']['title']
-            playlist_id = item['id']
-            item_count = item['contentDetails']['itemCount']
-            html += f'<li><strong>{title}</strong> - {item_count} videos (ID: {playlist_id})</li>'
-        html += '</ul>'
-    
-    html += '<p><a href="/channel">Back to Channel</a> | <a href="/">Home</a></p>'
-    return html
-    """
 
     for item in response.get('items', []):
         playlist_data = {
@@ -182,85 +156,7 @@ def get_playlists():
     
     return {'playlists': playlists}
 
-# @app.route('/watch-history')
-"""
-def get_watch_history():
-    if 'credentials' not in session:
-        return redirect('/login')
-    
-    creds = Credentials(**session['credentials'])
-    youtube = build('youtube', 'v3', credentials=creds)
-    
-    try:
-        watch_history = []
         
-        # Get user activities (watch history)
-        activities_response = youtube.activities().list(
-            part='snippet,contentDetails',
-            mine=True,
-            maxResults=50
-        ).execute()
-        
-        for activity in activities_response.get('items', []):
-            snippet = activity['snippet']
-            content_details = activity.get('contentDetails', {})
-            
-            video_id = None
-            
-            # Extract video ID from different activity types
-            if 'upload' in content_details:
-                video_id = content_details['upload'].get('videoId')
-            elif 'playlistItem' in content_details:
-                video_id = content_details['playlistItem'].get('resourceId', {}).get('videoId')
-            elif 'like' in content_details:
-                video_id = content_details['like'].get('resourceId', {}).get('videoId')
-            elif 'recommendation' in content_details:
-                video_id = content_details['recommendation'].get('resourceId', {}).get('videoId')
-            
-            if video_id:
-                try:
-                    # Get detailed video information
-                    video_response = youtube.videos().list(
-                        part='snippet,contentDetails,statistics',
-                        id=video_id
-                    ).execute()
-                    
-                    if video_response.get('items'):
-                        video = video_response['items'][0]
-                        video_snippet = video['snippet']
-                        
-                        # Parse duration to seconds (format: PT#M#S)
-                        duration = video['contentDetails'].get('duration', 'PT0S')
-                        watch_time_seconds = parse_duration(duration)
-                        
-                        video_data = {
-                            'video_id': video_id,
-                            'title': video_snippet['title'],
-                            'channel': video_snippet['channelTitle'],
-                            'watched_at': snippet['publishedAt'],
-                            'watch_time_seconds': watch_time_seconds,
-                            'thumbnail': video_snippet['thumbnails'].get('maxresdefault', video_snippet['thumbnails'].get('high', {})).get('url', ''),
-                            'tags': video_snippet.get('tags', [])
-                        }
-                        
-                        watch_history.append(video_data)
-                except Exception as e:
-                    print(f"Error fetching video {video_id}: {str(e)}")
-                    continue
-        
-        result = {
-            'user_profile': {
-                'interests': [],
-                'preferred_channels': []
-            },
-            'watch_history': watch_history
-        }
-        
-        return result
-        
-    except Exception as e:
-        return {'error': str(e)}, 500
-"""
 def get_watch_history(youtube):
     """Get watch history from YouTube API"""
     try:
