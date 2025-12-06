@@ -34,13 +34,10 @@ WORKDIR /app
 RUN addgroup --system --gid 1001 nodejs
 RUN adduser --system --uid 1001 nextjs
 
-# Copy public directory and built application
-COPY --from=builder --chown=nextjs:nodejs /app/public ./public
+# Copy built application and public assets
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
-
-# Change ownership
-RUN chown -R nextjs:nodejs /app
+COPY --from=builder --chown=nextjs:nodejs /app/public ./public
 USER nextjs
 
 # Expose port
