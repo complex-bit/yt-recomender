@@ -12,21 +12,8 @@ export const metadata: Metadata = {
     "Break free from YouTube's repetitive algorithm. Explore videos through an interactive genre tree and AI-powered recommendations based on your taste.",
   generator: "v0.app",
   icons: {
-    icon: [
-      {
-        url: "/icon-light-32x32.png",
-        media: "(prefers-color-scheme: light)",
-      },
-      {
-        url: "/icon-dark-32x32.png",
-        media: "(prefers-color-scheme: dark)",
-      },
-      {
-        url: "/icon.svg",
-        type: "image/svg+xml",
-      },
-    ],
-    apple: "/apple-icon.png",
+    icon: "/icon.png",
+    apple: "/icon.png",
   },
 }
 
