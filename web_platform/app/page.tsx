@@ -9,7 +9,7 @@ export default function Page() {
 
   const handleGoogleLogin = () => {
     // TODO: Implement Google OAuth login
-    // For now, navigate to explore after "login"
+    // For now, navigate to explore page to show genre wheel
     router.push("/flow/explore")
   }
 

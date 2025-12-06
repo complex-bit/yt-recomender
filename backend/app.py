@@ -4,16 +4,18 @@ import json
 import os
 from collections import Counter, defaultdict
 from datetime import datetime
+from recommendation_engine import RecommendationEngine
 
 app = Flask(__name__)
 CORS(app)
 
 # Global variable to store watch history data
 watch_history_data = None
+recommendation_engine = None
 
 def load_watch_history():
     """Load watch history from JSON file on startup"""
-    global watch_history_data
+    global watch_history_data, recommendation_engine
     try:
         # Try Docker path first, then local development path
         docker_path = '/app/youtube_watch_history.json'
@@ -21,12 +23,20 @@ def load_watch_history():
 
         if os.path.exists(docker_path):
             json_path = docker_path
+            db_path = '/app/youtube_videos.db'
         else:
             json_path = local_path
+            db_path = os.path.join(os.path.dirname(__file__), 'youtube_videos.db')
 
         with open(json_path, 'r') as file:
             watch_history_data = json.load(file)
         print(f"Loaded {len(watch_history_data['watch_history'])} videos from watch history")
+
+        # Initialize recommendation engine
+        recommendation_engine = RecommendationEngine(db_path, json_path)
+        recommendation_engine.load_user_preferences()
+        print("Recommendation engine initialized")
+
     except Exception as e:
         print(f"Error loading watch history: {e}")
         watch_history_data = {"watch_history": []}
@@ -285,6 +295,52 @@ def search_videos():
         'query': search_query,
         'genrePath': genre_path
     })
+
+@app.route('/api/recommendations', methods=['GET'])
+def get_recommendations():
+    """Get personalized video recommendations"""
+    if not recommendation_engine:
+        return jsonify({'error': 'Recommendation engine not initialized'}), 500
+
+    # Get query parameters
+    limit = request.args.get('limit', 20, type=int)
+    educational_level = request.args.get('educational_level')
+    min_duration = request.args.get('min_duration', type=int)
+    max_duration = request.args.get('max_duration', type=int)
+    channels = request.args.getlist('channels')
+
+    # Build filters
+    filters = {}
+    if educational_level:
+        filters['educational_level'] = educational_level
+    if min_duration:
+        filters['min_duration'] = min_duration
+    if max_duration:
+        filters['max_duration'] = max_duration
+    if channels:
+        filters['channels'] = channels
+
+    try:
+        recommendations = recommendation_engine.get_recommendations(limit, filters)
+        return jsonify({
+            'recommendations': recommendations,
+            'total': len(recommendations),
+            'filters_applied': filters
+        })
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/analytics', methods=['GET'])
+def get_user_analytics():
+    """Get user viewing analytics"""
+    if not recommendation_engine:
+        return jsonify({'error': 'Recommendation engine not initialized'}), 500
+
+    try:
+        analytics = recommendation_engine.get_user_analytics()
+        return jsonify(analytics)
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
 
 @app.route('/api/videos/<video_id>/feedback', methods=['POST'])
 def video_feedback(video_id):

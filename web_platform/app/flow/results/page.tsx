@@ -2,14 +2,13 @@
 
 import { useRouter } from "next/navigation"
 import { useState, useEffect } from "react"
-import { VideoCard } from "@/components/video-card"
-import { SearchInput } from "@/components/search-input"
-import { CircularSlider } from "@/components/circular-slider"
+import { VideoCard } from "@/components/VideoCard"
+import { FilterPanel } from "@/components/FilterPanel"
 import { FlowProgress } from "@/components/flow-progress"
 import { Button } from "@/components/ui/button"
+import { Badge } from "@/components/ui/badge"
 import { useFlow } from "@/lib/flow-context"
-import { searchVideos, submitVideoFeedback, type WatchHistoryItem } from "@/lib/api"
-import { RotateCcw, Sparkles } from "lucide-react"
+import { RotateCcw, RefreshCw } from "lucide-react"
 
 export default function ResultsPage() {
   const router = useRouter()
