@@ -26,7 +26,8 @@ export function GenreWheel({ genres, onSelect }: GenreWheelProps) {
     if (genreIndex === -1) return { x: 0, y: 0 }
 
     const angle = (genreIndex / genres.length) * 2 * Math.PI - Math.PI / 2
-    const offsetDistance = expandedSubGenre ? 80 : 50
+    // Zoom out more when sub-sub genres are shown
+    const offsetDistance = expandedSubGenre ? 120 : 50
 
     return {
       x: -Math.cos(angle) * offsetDistance,

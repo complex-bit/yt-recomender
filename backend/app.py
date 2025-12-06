@@ -481,6 +481,99 @@ def generate_fallback_genre_tree_from_watched():
         print(f"Error generating hierarchical genre tree: {e}")
         return []
 
+def create_dynamic_genre_tree():
+    """Create genre tree from actual database genre data"""
+    try:
+        conn = sqlite3.connect('/app/data/youtube_videos.db')
+        cursor = conn.cursor()
+
+        # Get genre hierarchy from database with counts
+        cursor.execute('''
+            SELECT
+                vg.primary_genre,
+                vg.secondary_genre,
+                vg.sub_genre,
+                COUNT(*) as count
+            FROM video_genres vg
+            WHERE vg.primary_genre IS NOT NULL
+            GROUP BY vg.primary_genre, vg.secondary_genre, vg.sub_genre
+            ORDER BY vg.primary_genre, count DESC
+        ''')
+
+        results = cursor.fetchall()
+        conn.close()
+
+        # Build hierarchical structure
+        genre_hierarchy = {}
+        total_videos = len(results)
+
+        for primary, secondary, sub, count in results:
+            if primary not in genre_hierarchy:
+                genre_hierarchy[primary] = {
+                    'count': 0,
+                    'children': {}
+                }
+
+            genre_hierarchy[primary]['count'] += count
+
+            if secondary:
+                if secondary not in genre_hierarchy[primary]['children']:
+                    genre_hierarchy[primary]['children'][secondary] = {
+                        'count': 0,
+                        'children': {}
+                    }
+                genre_hierarchy[primary]['children'][secondary]['count'] += count
+
+                if sub:
+                    if sub not in genre_hierarchy[primary]['children'][secondary]['children']:
+                        genre_hierarchy[primary]['children'][secondary]['children'][sub] = {
+                            'count': 0
+                        }
+                    genre_hierarchy[primary]['children'][secondary]['children'][sub]['count'] += count
+
+        # Convert to genre tree format, limit to top 3 primary genres
+        genre_tree = []
+        for primary_name, primary_data in sorted(genre_hierarchy.items(),
+                                                key=lambda x: x[1]['count'], reverse=True)[:3]:
+
+            # Build secondary children (limit to top 4)
+            secondary_children = []
+            for sec_name, sec_data in sorted(primary_data['children'].items(),
+                                           key=lambda x: x[1]['count'], reverse=True)[:4]:
+
+                # Build sub children (limit to top 3)
+                sub_children = []
+                for sub_name, sub_data in sorted(sec_data['children'].items(),
+                                               key=lambda x: x[1]['count'], reverse=True)[:3]:
+                    sub_children.append({
+                        'id': f"{primary_name}_{sec_name}_{sub_name}".lower().replace(' ', '_').replace('&', 'and'),
+                        'name': sub_name,
+                        'level': 3,
+                        'path': [primary_name, sec_name, sub_name]
+                    })
+
+                secondary_children.append({
+                    'id': f"{primary_name}_{sec_name}".lower().replace(' ', '_').replace('&', 'and'),
+                    'name': sec_name,
+                    'level': 2,
+                    'path': [primary_name, sec_name],
+                    'children': sub_children if sub_children else None
+                })
+
+            genre_tree.append({
+                'id': primary_name.lower().replace(' ', '_').replace('&', 'and'),
+                'name': primary_name,
+                'level': 1,
+                'path': [primary_name],
+                'children': secondary_children if secondary_children else None
+            })
+
+        return genre_tree
+
+    except Exception as e:
+        print(f"Error creating dynamic genre tree: {e}")
+        return create_fallback_genre_tree()
+
 def create_fallback_genre_tree():
     """Create a fallback genre tree from channels and basic categorization"""
     if not watch_history_data:
@@ -564,10 +657,9 @@ def get_user_profile():
     genre_percentages = analyze_genre_percentages()
     # Check for force_new parameter
     force_new = request.args.get('force_new', 'false').lower() == 'true'
-    # Create a simple genre tree based on the actual channels we have
+    # Create hardcoded genre tree with actual database genre names
     genre_tree = []
-    print(f"Debug: current_watch_history exists: {current_watch_history is not None}")
-    print(f"Debug: has watch_history: {current_watch_history.get('watch_history') is not None if current_watch_history else False}")
+
     if current_watch_history and current_watch_history.get('watch_history'):
         from collections import Counter
 
@@ -619,24 +711,31 @@ def get_user_profile():
                 'path': ['Technology'],
                 'children': [
                     {
-                        'id': 'technology_reviews',
-                        'name': 'Reviews',
+                        'id': 'technology_gadgets',
+                        'name': 'Gadgets',
                         'level': 2,
-                        'path': ['Technology', 'Reviews'],
+                        'path': ['Technology', 'Gadgets'],
                         'children': [
-                            {'id': 'technology_reviews_mobile', 'name': 'Mobile Devices', 'level': 3, 'path': ['Technology', 'Reviews', 'Mobile Devices']},
-                            {'id': 'technology_reviews_gaming', 'name': 'Gaming Hardware', 'level': 3, 'path': ['Technology', 'Reviews', 'Gaming Hardware']}
+                            {'id': 'technology_gadgets_mobile', 'name': 'Mobile Devices', 'level': 3, 'path': ['Technology', 'Gadgets', 'Mobile Devices']},
+                            {'id': 'technology_gadgets_audio', 'name': 'Audio Devices', 'level': 3, 'path': ['Technology', 'Gadgets', 'Audio Devices']}
                         ]
                     },
                     {
-                        'id': 'technology_tutorials',
-                        'name': 'Tutorials',
+                        'id': 'technology_gaming',
+                        'name': 'Gaming',
                         'level': 2,
-                        'path': ['Technology', 'Tutorials'],
+                        'path': ['Technology', 'Gaming'],
                         'children': [
-                            {'id': 'technology_tutorials_pc', 'name': 'PC Building', 'level': 3, 'path': ['Technology', 'Tutorials', 'PC Building']},
-                            {'id': 'technology_tutorials_software', 'name': 'Software Guides', 'level': 3, 'path': ['Technology', 'Tutorials', 'Software Guides']}
+                            {'id': 'technology_gaming_hardware', 'name': 'Gaming Hardware', 'level': 3, 'path': ['Technology', 'Gaming', 'Gaming Hardware']},
+                            {'id': 'technology_gaming_reviews', 'name': 'Game Reviews', 'level': 3, 'path': ['Technology', 'Gaming', 'Game Reviews']}
                         ]
+                    },
+                    {
+                        'id': 'technology_news',
+                        'name': 'Tech News',
+                        'level': 2,
+                        'path': ['Technology', 'Tech News'],
+                        'children': []
                     }
                 ]
             })

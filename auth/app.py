@@ -3,8 +3,7 @@
 import os
 import json
 import secrets
-from flask import Flask, redirect, request, session, url_for, jsonify
-# from flask_cors import CORS
+from flask import Flask, redirect, request, session, url_for
 from google_auth_oauthlib.flow import Flow
 from googleapiclient.discovery import build
 from dotenv import load_dotenv
@@ -15,8 +14,7 @@ from datetime import datetime
 load_dotenv()
 
 app = Flask(__name__)
-app.secret_key = secrets.token_hex(16)
-# CORS(app)  # Allow cross-origin requests 
+app.secret_key = secrets.token_hex(16) 
 
 SCOPES = ['https://www.googleapis.com/auth/youtube.readonly']
 os.environ['OAUTHLIB_INSECURE_TRANSPORT'] = '1'  # Remove in production
@@ -98,8 +96,7 @@ def callback():
     channel_info = get_channel_info()
     print(f"\n{channel_info=}\n")
 
-    # Redirect back to WhyExplore app with authentication success
-    return redirect('http://localhost:3000/flow/explore?auth=success')
+    return redirect('/')
 
 # @app.route('/channel')
 def get_channel_info():
@@ -422,19 +419,11 @@ def parse_duration(duration_str):
     
     return hours * 3600 + minutes * 60 + seconds
 
-@app.route('/api/auth-status')
-def auth_status():
-    """Check if user is authenticated"""
-    if 'credentials' in session:
-        return jsonify({'authenticated': True, 'user': 'Google User'})
-    else:
-        return jsonify({'authenticated': False})
-
 @app.route('/logout')
 def logout():
     session.clear()
     return redirect('/')
 
 
-if __name__ == '__main__':
+if __name__ == '__main__':  
     app.run(debug=True, host='localhost', port=5001)

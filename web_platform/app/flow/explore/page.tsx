@@ -1,6 +1,6 @@
 "use client"
 
-import { useRouter } from "next/navigation"
+import { useRouter, useSearchParams } from "next/navigation"
 import React, { useState, useEffect } from "react"
 import { SearchInput } from "@/components/search-input"
 import { VhsDivider } from "@/components/vhs-divider"
@@ -13,6 +13,7 @@ import { getUserProfile, type TopChannel, type GenreTreeNode } from "@/lib/api"
 
 export default function ExplorePage() {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const { flow, updateFlow } = useFlow()
   const [localSearch, setLocalSearch] = useState(flow.searchQuery)
   const [topChannels, setTopChannels] = useState<TopChannel[]>([])
@@ -21,6 +22,24 @@ export default function ExplorePage() {
   const [refreshing, setRefreshing] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [selectedGenrePath, setSelectedGenrePath] = useState<GenreTreeNode[]>([])
+  const [authSuccess, setAuthSuccess] = useState(false)
+
+  useEffect(() => {
+    // Check if user just authenticated successfully
+    const authStatus = searchParams.get('auth')
+    if (authStatus === 'success') {
+      setAuthSuccess(true)
+      // Remove auth parameter from URL
+      const url = new URL(window.location.href)
+      url.searchParams.delete('auth')
+      window.history.replaceState({}, '', url.toString())
+
+      // Hide success message after 3 seconds
+      setTimeout(() => {
+        setAuthSuccess(false)
+      }, 3000)
+    }
+  }, [searchParams])
 
   useEffect(() => {
     const loadProfile = async () => {
@@ -75,6 +94,13 @@ export default function ExplorePage() {
   return (
     <>
       <FlowProgress currentStep={1} />
+
+      {/* Authentication Success Message */}
+      {authSuccess && (
+        <div className="fixed top-4 right-4 bg-green-500 text-white px-6 py-3 rounded-lg shadow-lg z-50 animate-in fade-in duration-300">
+          ✅ Successfully authenticated with Google!
+        </div>
+      )}
 
       <section>
         <div className="mb-12">
