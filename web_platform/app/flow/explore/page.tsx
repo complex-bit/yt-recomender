@@ -9,8 +9,7 @@ import { Button } from "@/components/ui/button"
 import { useFlow } from "@/lib/flow-context"
 import { GenreWheel } from "@/components/genre-wheel"
 import { ChannelIcon } from "@/components/channel-icon"
-import { SemanticSearchChat } from "@/components/SemanticSearchChat"
-import { getUserProfile, semanticSearch, type TopChannel, type GenreTreeNode } from "@/lib/api"
+import { getUserProfile, type TopChannel, type GenreTreeNode } from "@/lib/api"
 
 export default function ExplorePage() {
   const router = useRouter()
@@ -22,9 +21,6 @@ export default function ExplorePage() {
   const [refreshing, setRefreshing] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [selectedGenrePath, setSelectedGenrePath] = useState<GenreTreeNode[]>([])
-  const [semanticSearchLoading, setSemanticSearchLoading] = useState(false)
-  const [chatHistory, setChatHistory] = useState<any[]>([])
-  const semanticSearchRef = React.useRef<any>(null)
 
   useEffect(() => {
     const loadProfile = async () => {
@@ -54,39 +50,6 @@ export default function ExplorePage() {
     router.push("/flow/results")
   }
 
-  const handleSemanticSearch = async (query: string, chatHistory: any[]) => {
-    try {
-      setSemanticSearchLoading(true)
-      const results = await semanticSearch({
-        query,
-        genrePath: selectedGenrePath,
-        chatHistory,
-        limit: 20
-      })
-
-      updateFlow({
-        searchQuery: query,
-        semanticSearchResults: results,
-        selectedGenrePath: selectedGenrePath,
-        searchType: 'semantic',
-        chatHistory: chatHistory
-      })
-
-      // Add system response to chat showing results count
-      if (semanticSearchRef.current?.addSystemResponse) {
-        semanticSearchRef.current.addSystemResponse(
-          `Found ${results.total} videos matching "${query}"${selectedGenrePath.length > 0 ? ` in ${selectedGenrePath.map(n => n.name).join(' → ')}` : ''}`,
-          results.total
-        )
-      }
-
-      router.push("/flow/results")
-    } catch (error) {
-      console.error('Semantic search failed:', error)
-    } finally {
-      setSemanticSearchLoading(false)
-    }
-  }
 
   const handleRefreshGenres = async () => {
     try {
@@ -149,9 +112,9 @@ export default function ExplorePage() {
           </p>
         </div>
 
-        <div className="grid lg:grid-cols-2 gap-8 mb-8">
-          {/* Genre Wheel Section */}
-          <div className="bg-[#FFF9F0] rounded-2xl p-8 shadow-lg min-h-[700px] flex flex-col">
+        {/* Genre Wheel Section */}
+        <div className="flex justify-center mb-8">
+          <div className="bg-[#FFF9F0] rounded-2xl p-8 shadow-lg min-h-[700px] flex flex-col max-w-4xl w-full">
             <div className="flex justify-between items-center mb-4">
               <h3 className="text-xl font-['Zilla_Slab',serif] font-semibold text-[#3E2723]">
                 Browse by Categories
@@ -178,23 +141,11 @@ export default function ExplorePage() {
               )}
             </div>
           </div>
-
-          {/* Semantic Search Section */}
-          <div className="min-h-[700px]">
-            <SemanticSearchChat
-              ref={semanticSearchRef}
-              selectedGenrePath={selectedGenrePath}
-              onSearch={handleSemanticSearch}
-              isLoading={semanticSearchLoading}
-              onChatUpdate={setChatHistory}
-              initialChatHistory={flow.chatHistory || []}
-            />
-          </div>
         </div>
 
-        {/* Fallback Simple Search */}
+        {/* Simple Search */}
         <div className="mb-8">
-          <VhsDivider text="OR USE SIMPLE SEARCH" />
+          <VhsDivider text="OR SEARCH DIRECTLY" />
           <SearchInput
             placeholder="Simple search (e.g., 'underwater videos')"
             onSearch={handleSearch}
