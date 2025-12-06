@@ -19,8 +19,7 @@ services:
       - FLASK_PORT=5000
       - DATABASE_PATH=/app/data/youtube_videos.db
       - CORS_ORIGINS=http://localhost:3000,http://frontend:3000
-    networks:
-      - whyexplore-network
+    network_mode: bridge
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:5000/health"]
@@ -44,8 +43,7 @@ services:
     depends_on:
       backend:
         condition: service_healthy
-    networks:
-      - whyexplore-network
+    network_mode: bridge
     restart: unless-stopped
 
   # YouTube Scraper (run separately)
@@ -64,16 +62,15 @@ services:
              python yt_dlp_scraper.py --channels-file channels_list.txt --max-videos 50 --delay 2.0 --export /app/data/scraped_data.json &&
              echo 'Scraping completed!' &&
              python yt_dlp_scraper.py --stats"
-    networks:
-      - whyexplore-network
+    network_mode: bridge
     profiles:
       - scraper  # Only run when explicitly requested
     restart: "no"  # Don't restart scraper automatically
 
-# Networks
-networks:
-  whyexplore-network:
-    driver: bridge
+# Networks (temporarily disabled due to iptables issue)
+# networks:
+#   whyexplore-network:
+#     driver: bridge
 
 # Volumes
 volumes:

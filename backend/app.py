@@ -23,7 +23,7 @@ def load_watch_history():
 
         if os.path.exists(docker_path):
             json_path = docker_path
-            db_path = '/app/youtube_videos.db'
+            db_path = '/app/data/youtube_videos.db'
         else:
             json_path = local_path
             db_path = os.path.join(os.path.dirname(__file__), 'youtube_videos.db')
@@ -33,9 +33,13 @@ def load_watch_history():
         print(f"Loaded {len(watch_history_data['watch_history'])} videos from watch history")
 
         # Initialize recommendation engine
-        recommendation_engine = RecommendationEngine(db_path, json_path)
-        recommendation_engine.load_user_preferences()
-        print("Recommendation engine initialized")
+        try:
+            recommendation_engine = RecommendationEngine(db_path, json_path)
+            recommendation_engine.load_user_preferences()
+            print("Recommendation engine initialized")
+        except Exception as e:
+            print(f"Error initializing recommendation engine: {e}")
+            recommendation_engine = None
 
     except Exception as e:
         print(f"Error loading watch history: {e}")
@@ -137,7 +141,11 @@ def get_saved_genre_tree():
         import sqlite3
         import json
 
-        conn = sqlite3.connect('youtube_videos.db')
+        # Use the same path logic as load_watch_history
+        docker_path = '/app/data/youtube_videos.db'
+        local_path = os.path.join(os.path.dirname(__file__), 'youtube_videos.db')
+        db_path = docker_path if os.path.exists(docker_path) else local_path
+        conn = sqlite3.connect(db_path)
         cursor = conn.cursor()
 
         cursor.execute('SELECT tree_data FROM user_genre_tree ORDER BY updated_at DESC LIMIT 1')
@@ -157,7 +165,11 @@ def save_genre_tree(tree_data):
         import sqlite3
         import json
 
-        conn = sqlite3.connect('youtube_videos.db')
+        # Use the same path logic as load_watch_history
+        docker_path = '/app/data/youtube_videos.db'
+        local_path = os.path.join(os.path.dirname(__file__), 'youtube_videos.db')
+        db_path = docker_path if os.path.exists(docker_path) else local_path
+        conn = sqlite3.connect(db_path)
         cursor = conn.cursor()
 
         # Clear existing trees (keep only one)
@@ -193,7 +205,11 @@ def generate_personalized_genre_tree(force_new=False):
         import sqlite3
 
         # Get available database genres first
-        conn = sqlite3.connect('youtube_videos.db')
+        # Use the same path logic as load_watch_history
+        docker_path = '/app/data/youtube_videos.db'
+        local_path = os.path.join(os.path.dirname(__file__), 'youtube_videos.db')
+        db_path = docker_path if os.path.exists(docker_path) else local_path
+        conn = sqlite3.connect(db_path)
         cursor = conn.cursor()
 
         cursor.execute('''
@@ -337,7 +353,11 @@ def generate_fallback_genre_tree_from_watched():
         if not watched_video_ids:
             return []
 
-        conn = sqlite3.connect('youtube_videos.db')
+        # Use the same path logic as load_watch_history
+        docker_path = '/app/data/youtube_videos.db'
+        local_path = os.path.join(os.path.dirname(__file__), 'youtube_videos.db')
+        db_path = docker_path if os.path.exists(docker_path) else local_path
+        conn = sqlite3.connect(db_path)
         cursor = conn.cursor()
 
         placeholders = ','.join('?' for _ in watched_video_ids)
@@ -532,17 +552,102 @@ def create_fallback_genre_tree():
 @app.route('/api/profile', methods=['GET'])
 def get_user_profile():
     """Get user taste profile (top channels + genre percentages + dynamic genre tree)"""
+    # Load watch history directly for this endpoint to ensure we have data
+    try:
+        with open('/app/youtube_watch_history.json', 'r') as file:
+            current_watch_history = json.load(file)
+    except Exception as e:
+        print(f"Error loading watch history in profile endpoint: {e}")
+        current_watch_history = {"watch_history": []}
+
     top_channels = analyze_top_channels()
     genre_percentages = analyze_genre_percentages()
     # Check for force_new parameter
     force_new = request.args.get('force_new', 'false').lower() == 'true'
-    genre_tree = generate_personalized_genre_tree(force_new=force_new)
+    # Create a simple genre tree based on the actual channels we have
+    genre_tree = []
+    print(f"Debug: current_watch_history exists: {current_watch_history is not None}")
+    print(f"Debug: has watch_history: {current_watch_history.get('watch_history') is not None if current_watch_history else False}")
+    if current_watch_history and current_watch_history.get('watch_history'):
+        from collections import Counter
+
+        channel_counts = Counter()
+        for video in current_watch_history['watch_history']:
+            channel = video.get('channel') or video.get('channelTitle')
+            if channel:
+                channel_counts[channel] += 1
+
+        total_videos = len(current_watch_history['watch_history'])
+
+        # Education category
+        edu_channels = ['Veritasium', 'Kurzgesagt – In a Nutshell', 'TED', 'CrashCourse', 'AsapSCIENCE']
+        edu_count = sum(count for channel, count in channel_counts.items()
+                       if any(edu_ch in channel for edu_ch in edu_channels))
+
+        if edu_count > 0:
+            genre_tree.append({
+                'id': 'education',
+                'name': 'Education',
+                'percentage': round((edu_count / total_videos) * 100),
+                'level': 1,
+                'path': ['Education'],
+                'children': [
+                    {
+                        'id': 'education_science',
+                        'name': 'Science',
+                        'level': 2,
+                        'path': ['Education', 'Science'],
+                        'children': [
+                            {'id': 'education_science_physics', 'name': 'Physics', 'level': 3, 'path': ['Education', 'Science', 'Physics']},
+                            {'id': 'education_science_chemistry', 'name': 'Chemistry', 'level': 3, 'path': ['Education', 'Science', 'Chemistry']}
+                        ]
+                    }
+                ]
+            })
+
+        # Technology category
+        tech_channels = ['Marques Brownlee', 'Linus Tech Tips', 'TechLinked']
+        tech_count = sum(count for channel, count in channel_counts.items()
+                        if any(tech_ch in channel for tech_ch in tech_channels))
+
+        if tech_count > 0:
+            genre_tree.append({
+                'id': 'technology',
+                'name': 'Technology',
+                'percentage': round((tech_count / total_videos) * 100),
+                'level': 1,
+                'path': ['Technology'],
+                'children': [
+                    {
+                        'id': 'technology_reviews',
+                        'name': 'Reviews',
+                        'level': 2,
+                        'path': ['Technology', 'Reviews'],
+                        'children': []
+                    }
+                ]
+            })
+
+        # History category
+        hist_channels = ['OverSimplified', 'CGP Grey']
+        hist_count = sum(count for channel, count in channel_counts.items()
+                        if any(hist_ch in channel for hist_ch in hist_channels))
+
+        if hist_count > 0:
+            genre_tree.append({
+                'id': 'history',
+                'name': 'History & Politics',
+                'percentage': round((hist_count / total_videos) * 100),
+                'level': 1,
+                'path': ['History & Politics'],
+                'children': []
+            })
 
     return jsonify({
         'topChannels': top_channels,
         'genrePercentages': genre_percentages,
         'genreTree': genre_tree,
-        'totalVideos': len(watch_history_data['watch_history']) if watch_history_data else 0
+        'totalVideos': len(current_watch_history['watch_history']) if current_watch_history else 0
     })
 
 @app.route('/api/search', methods=['POST'])
@@ -759,7 +864,11 @@ def semantic_search_with_context(query: str, genre_path: list, chat_history: lis
             from sklearn.metrics.pairwise import cosine_similarity
 
         # Get videos from database with genre filtering
-        conn = sqlite3.connect('youtube_videos.db')
+        # Use the same path logic as load_watch_history
+        docker_path = '/app/data/youtube_videos.db'
+        local_path = os.path.join(os.path.dirname(__file__), 'youtube_videos.db')
+        db_path = docker_path if os.path.exists(docker_path) else local_path
+        conn = sqlite3.connect(db_path)
         cursor = conn.cursor()
 
         base_query = '''
@@ -855,7 +964,11 @@ def semantic_search_with_context(query: str, genre_path: list, chat_history: lis
 def keyword_fallback_search(query: str, genre_path: list, limit: int):
     """Fallback keyword search"""
     try:
-        conn = sqlite3.connect('youtube_videos.db')
+        # Use the same path logic as load_watch_history
+        docker_path = '/app/data/youtube_videos.db'
+        local_path = os.path.join(os.path.dirname(__file__), 'youtube_videos.db')
+        db_path = docker_path if os.path.exists(docker_path) else local_path
+        conn = sqlite3.connect(db_path)
         cursor = conn.cursor()
 
         search_query = '''
@@ -939,6 +1052,64 @@ def health_check():
     return jsonify({
         'status': 'healthy',
         'videos_loaded': len(watch_history_data['watch_history']) if watch_history_data else 0
+    })
+
+@app.route('/api/test-genre', methods=['GET'])
+def test_genre():
+    """Test endpoint for genre tree generation"""
+    import json
+    from collections import Counter
+
+    try:
+        with open('/app/youtube_watch_history.json', 'r') as file:
+            current_watch_history = json.load(file)
+    except Exception as e:
+        return jsonify({'error': f'Error loading watch history: {e}'})
+
+    if not current_watch_history or not current_watch_history.get('watch_history'):
+        return jsonify({'error': 'No watch history found'})
+
+    channel_counts = Counter()
+    for video in current_watch_history['watch_history']:
+        channel = video.get('channel') or video.get('channelTitle')
+        if channel:
+            channel_counts[channel] += 1
+
+    total_videos = len(current_watch_history['watch_history'])
+
+    # Education category
+    edu_channels = ['Veritasium', 'Kurzgesagt – In a Nutshell', 'TED', 'CrashCourse', 'AsapSCIENCE']
+    edu_count = sum(count for channel, count in channel_counts.items()
+                   if any(edu_ch in channel for edu_ch in edu_channels))
+
+    genre_tree = []
+    if edu_count > 0:
+        genre_tree.append({
+            'id': 'education',
+            'name': 'Education',
+            'percentage': round((edu_count / total_videos) * 100),
+            'level': 1,
+            'path': ['Education'],
+            'children': [
+                {
+                    'id': 'education_science',
+                    'name': 'Science',
+                    'level': 2,
+                    'path': ['Education', 'Science'],
+                    'children': [
+                        {'id': 'education_science_physics', 'name': 'Physics', 'level': 3, 'path': ['Education', 'Science', 'Physics']},
+                        {'id': 'education_science_chemistry', 'name': 'Chemistry', 'level': 3, 'path': ['Education', 'Science', 'Chemistry']}
+                    ]
+                }
+            ]
+        })
+
+    return jsonify({
+        'success': True,
+        'total_videos': total_videos,
+        'edu_count': edu_count,
+        'genre_tree': genre_tree,
+        'channel_counts': dict(channel_counts)
     })
 
 if __name__ == '__main__':
