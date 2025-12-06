@@ -111,7 +111,7 @@ export function FilterPanel({ filters, onChange, analytics }: FilterPanelProps) 
               step={300}
               className="w-full"
             />
-            <div className="text-center text-xs text-[#6B5B55]">
+            <div className="text-center text-xs text-[#6B5B55] transition-all duration-200 ease-in-out">
               Up to {filters.max_duration >= 3600 ? '1h+' : formatDuration(filters.max_duration)}
             </div>
           </div>
@@ -142,7 +142,7 @@ export function FilterPanel({ filters, onChange, analytics }: FilterPanelProps) 
               step={1}
               className="w-full"
             />
-            <div className="text-center text-xs text-[#6B5B55]">
+            <div className="text-center text-xs text-[#6B5B55] transition-all duration-200 ease-in-out">
               {filters.popularity < 30 ? 'Hidden Gems' :
                filters.popularity > 70 ? 'Popular Hits' : 'Mixed Popularity'}
             </div>
@@ -164,7 +164,7 @@ export function FilterPanel({ filters, onChange, analytics }: FilterPanelProps) 
               step={1}
               className="w-full"
             />
-            <div className="text-center text-xs text-[#6B5B55]">
+            <div className="text-center text-xs text-[#6B5B55] transition-all duration-200 ease-in-out">
               {filters.recency < 30 ? 'Classic Videos' :
                filters.recency > 70 ? 'Fresh Content' : 'Mixed Ages'}
             </div>
@@ -186,56 +186,13 @@ export function FilterPanel({ filters, onChange, analytics }: FilterPanelProps) 
               step={1}
               className="w-full"
             />
-            <div className="text-center text-xs text-[#6B5B55]">
+            <div className="text-center text-xs text-[#6B5B55] transition-all duration-200 ease-in-out">
               {filters.uniqueness < 30 ? 'Your Channels' :
                filters.uniqueness > 70 ? 'New Channels' : 'Mixed Discovery'}
             </div>
           </div>
         </div>
 
-        {/* Preferred Channels */}
-        {analytics?.top_channels && Object.keys(analytics.top_channels).length > 0 && (
-          <div className="space-y-3">
-            <Label className="text-sm font-medium">Your Channels</Label>
-            <div className="space-y-2 max-h-40 overflow-y-auto">
-              {Object.entries(analytics.top_channels).map(([channel, score]) => (
-                <div
-                  key={channel}
-                  className="flex items-center space-x-2 cursor-pointer"
-                  onClick={() => toggleChannel(channel)}
-                >
-                  <Checkbox
-                    checked={filters.channels.includes(channel)}
-                    onChange={() => toggleChannel(channel)}
-                  />
-                  <div className="flex-1 min-w-0">
-                    <Label className="text-sm cursor-pointer truncate block">
-                      {channel}
-                    </Label>
-                    <div className="text-xs text-[#6B5B55]">
-                      {Math.round(score * 100)}% preference
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-            {filters.channels.length > 0 && (
-              <div className="flex flex-wrap gap-1">
-                {filters.channels.map((channel) => (
-                  <Badge
-                    key={channel}
-                    variant="secondary"
-                    className="gap-1 cursor-pointer max-w-full truncate"
-                    onClick={() => toggleChannel(channel)}
-                  >
-                    <span className="truncate max-w-20">{channel}</span>
-                    <X className="h-3 w-3 flex-shrink-0" />
-                  </Badge>
-                ))}
-              </div>
-            )}
-          </div>
-        )}
 
         {/* Quick Filters */}
         <div className="space-y-3 border-t pt-4">
@@ -268,13 +225,11 @@ export function FilterPanel({ filters, onChange, analytics }: FilterPanelProps) 
               size="sm"
               className="justify-start h-8 text-xs"
               onClick={() => {
-                if (analytics?.top_channels) {
-                  const topChannel = Object.keys(analytics.top_channels)[0]
-                  if (topChannel) updateFilter('channels', [topChannel])
-                }
+                updateFilter('recency', 70) // Fresh content
+                updateFilter('uniqueness', 70) // New discovery
               }}
             >
-              Favorites Only
+              Fresh & New
             </Button>
           </div>
         </div>

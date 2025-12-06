@@ -131,22 +131,223 @@ def analyze_genre_percentages():
 
     return genre_percentages
 
-def generate_dynamic_genre_tree():
-    """Generate hierarchical genre tree: Primary > Secondary > Sub > Sub-Sub"""
+def get_saved_genre_tree():
+    """Get saved genre tree from database"""
     try:
         import sqlite3
+        import json
 
-        # Query database for ALL genre classifications to show full genre exploration options
+        conn = sqlite3.connect('youtube_videos.db')
+        cursor = conn.cursor()
+
+        cursor.execute('SELECT tree_data FROM user_genre_tree ORDER BY updated_at DESC LIMIT 1')
+        result = cursor.fetchone()
+        conn.close()
+
+        if result:
+            return json.loads(result[0])
+        return None
+    except Exception as e:
+        print(f"Error getting saved genre tree: {e}")
+        return None
+
+def save_genre_tree(tree_data):
+    """Save genre tree to database"""
+    try:
+        import sqlite3
+        import json
+
+        conn = sqlite3.connect('youtube_videos.db')
+        cursor = conn.cursor()
+
+        # Clear existing trees (keep only one)
+        cursor.execute('DELETE FROM user_genre_tree')
+
+        # Save new tree
+        cursor.execute(
+            'INSERT INTO user_genre_tree (tree_data) VALUES (?)',
+            (json.dumps(tree_data),)
+        )
+
+        conn.commit()
+        conn.close()
+        return True
+    except Exception as e:
+        print(f"Error saving genre tree: {e}")
+        return False
+
+def generate_personalized_genre_tree(force_new=False):
+    """Generate personalized genre tree using actual database genres"""
+    if not watch_history_data:
+        return []
+
+    # Check for saved tree first (unless force_new is True)
+    if not force_new:
+        saved_tree = get_saved_genre_tree()
+        if saved_tree:
+            return saved_tree
+
+    try:
+        import openai
+        import os
+        import sqlite3
+
+        # Get available database genres first
         conn = sqlite3.connect('youtube_videos.db')
         cursor = conn.cursor()
 
         cursor.execute('''
-            SELECT primary_genre, secondary_genre, sub_genre, sub_sub_genre, COUNT(*) as count
+            SELECT DISTINCT primary_genre, secondary_genre, sub_genre, COUNT(*) as count
             FROM video_genres
             WHERE primary_genre IS NOT NULL
-            GROUP BY primary_genre, secondary_genre, sub_genre, sub_sub_genre
+            GROUP BY primary_genre, secondary_genre, sub_genre
             ORDER BY count DESC
         ''')
+
+        available_genres = cursor.fetchall()
+        conn.close()
+
+        # Create a structure of available genres
+        genre_structure = {}
+        for primary, secondary, sub, count in available_genres:
+            if primary not in genre_structure:
+                genre_structure[primary] = {}
+            if secondary and secondary not in genre_structure[primary]:
+                genre_structure[primary][secondary] = []
+            if sub and secondary:
+                genre_structure[primary][secondary].append(sub)
+
+        # Extract all tags from user's watch history
+        all_tags = []
+        for video in watch_history_data['watch_history']:
+            tags = video.get('tags', [])
+            all_tags.extend(tags)
+
+        unique_tags = list(set(all_tags))
+
+        if not unique_tags:
+            return generate_fallback_genre_tree_from_watched()
+
+        # Use OpenAI to map user tags to actual database genres
+        openai.api_key = os.getenv('OPENAI_API_KEY')
+
+        tags_string = ', '.join(unique_tags)
+        available_genres_text = str(genre_structure)
+
+        response = openai.chat.completions.create(
+            model="gpt-3.5-turbo",
+            messages=[{
+                "role": "system",
+                "content": "You are a YouTube content categorization expert. Map user interests to existing database genres."
+            }, {
+                "role": "user",
+                "content": f"""Based on these tags from a user's watch history, create a genre tree using ONLY the available genres from the database.
+
+User tags: {tags_string}
+
+Available database genres: {available_genres_text}
+
+Create a JSON structure with 3-4 primary categories that match the user's interests. Use ONLY the exact genre names from the database structure provided above.
+
+Return format:
+[
+  {{
+    "primary": "Education",
+    "secondary": ["History", "Science"],
+    "relevance": 0.9
+  }}
+]
+
+Map the user's tags to the most relevant existing database genres. Be selective - only include genres that truly match the user's interests."""
+            }],
+            temperature=0.3
+        )
+
+        import json
+        mapping_text = response.choices[0].message.content
+
+        # Extract JSON from response
+        start_idx = mapping_text.find('[')
+        end_idx = mapping_text.rfind(']') + 1
+        if start_idx >= 0 and end_idx > start_idx:
+            mapping_json = mapping_text[start_idx:end_idx]
+            genre_mapping = json.loads(mapping_json)
+
+            # Build tree using actual database genres
+            formatted_tree = []
+
+            for i, mapping in enumerate(genre_mapping[:4]):  # Limit to 4 categories
+                primary = mapping.get('primary')
+                secondary_list = mapping.get('secondary', [])
+                relevance = mapping.get('relevance', 0.5)
+
+                if primary in genre_structure:
+                    category_data = {
+                        'id': primary.lower().replace(' ', '_').replace('&', 'and'),
+                        'name': primary,
+                        'percentage': int(relevance * 100),
+                        'level': 1,
+                        'path': [primary],
+                        'children': []
+                    }
+
+                    for secondary in secondary_list:
+                        if secondary in genre_structure[primary]:
+                            sub_data = {
+                                'id': f"{category_data['id']}_{secondary.lower().replace(' ', '_')}",
+                                'name': secondary,
+                                'level': 2,
+                                'path': [primary, secondary],
+                                'children': []
+                            }
+
+                            # Add sub-genres
+                            for sub in genre_structure[primary][secondary][:3]:  # Limit to 3
+                                topic_data = {
+                                    'id': f"{sub_data['id']}_{sub.lower().replace(' ', '_')}",
+                                    'name': sub,
+                                    'level': 3,
+                                    'path': [primary, secondary, sub]
+                                }
+                                sub_data['children'].append(topic_data)
+
+                            category_data['children'].append(sub_data)
+
+                    formatted_tree.append(category_data)
+
+            # Save the generated tree
+            save_genre_tree(formatted_tree)
+            return formatted_tree
+
+    except Exception as e:
+        print(f"Error generating personalized genre tree with ChatGPT: {e}")
+        return generate_fallback_genre_tree_from_watched()
+
+def generate_fallback_genre_tree_from_watched():
+    """Generate genre tree only from videos the user has actually watched"""
+    if not watch_history_data:
+        return []
+
+    try:
+        import sqlite3
+
+        # Get genre classifications only for watched videos
+        watched_video_ids = [v.get('video_id') for v in watch_history_data['watch_history'] if v.get('video_id')]
+
+        if not watched_video_ids:
+            return []
+
+        conn = sqlite3.connect('youtube_videos.db')
+        cursor = conn.cursor()
+
+        placeholders = ','.join('?' for _ in watched_video_ids)
+        cursor.execute(f'''
+            SELECT primary_genre, secondary_genre, sub_genre, sub_sub_genre, COUNT(*) as count
+            FROM video_genres
+            WHERE video_id IN ({placeholders}) AND primary_genre IS NOT NULL
+            GROUP BY primary_genre, secondary_genre, sub_genre, sub_sub_genre
+            ORDER BY count DESC
+        ''', watched_video_ids)
 
         genre_data = cursor.fetchall()
         conn.close()
@@ -333,7 +534,9 @@ def get_user_profile():
     """Get user taste profile (top channels + genre percentages + dynamic genre tree)"""
     top_channels = analyze_top_channels()
     genre_percentages = analyze_genre_percentages()
-    genre_tree = generate_dynamic_genre_tree()
+    # Check for force_new parameter
+    force_new = request.args.get('force_new', 'false').lower() == 'true'
+    genre_tree = generate_personalized_genre_tree(force_new=force_new)
 
     return jsonify({
         'topChannels': top_channels,
@@ -511,6 +714,224 @@ def root():
         'endpoints': ['/api/profile', '/api/search', '/health'],
         'videos_loaded': len(watch_history_data['watch_history']) if watch_history_data else 0
     })
+
+@app.route('/api/semantic-search', methods=['POST'])
+def semantic_search():
+    """Enhanced semantic search with genre context and chat log"""
+    data = request.json
+
+    # Extract search parameters
+    query = data.get('query', '')
+    genre_path = data.get('genrePath', [])
+    chat_history = data.get('chatHistory', [])
+    limit = data.get('limit', 20)
+
+    try:
+        # Use semantic search with genre context
+        results = semantic_search_with_context(query, genre_path, chat_history, limit)
+
+        return jsonify({
+            'videos': results,
+            'total': len(results),
+            'query': query,
+            'genrePath': genre_path,
+            'searchExplanation': generate_search_explanation(query, genre_path, len(results))
+        })
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+def semantic_search_with_context(query: str, genre_path: list, chat_history: list, limit: int = 20):
+    """Perform semantic search using OpenAI embeddings with genre context"""
+    import openai
+    import numpy as np
+
+    if not query.strip():
+        return []
+
+    try:
+        # Install scikit-learn for similarity calculation
+        try:
+            from sklearn.metrics.pairwise import cosine_similarity
+        except ImportError:
+            print("Installing scikit-learn for similarity calculation...")
+            import subprocess
+            subprocess.check_call([sys.executable, "-m", "pip", "install", "scikit-learn"])
+            from sklearn.metrics.pairwise import cosine_similarity
+
+        # Get videos from database with genre filtering
+        conn = sqlite3.connect('youtube_videos.db')
+        cursor = conn.cursor()
+
+        base_query = '''
+            SELECT v.video_id, v.title, v.channel_title, v.description,
+                   v.thumbnail, v.duration, v.view_count, v.like_count,
+                   v.published_at, v.tags, v.categories,
+                   vg.primary_genre, vg.secondary_genre, vg.sub_genre,
+                   vg.content_type, vg.educational_level, vg.target_audience
+            FROM videos v
+            LEFT JOIN (
+                SELECT video_id,
+                       MAX(primary_genre) as primary_genre,
+                       MAX(secondary_genre) as secondary_genre,
+                       MAX(sub_genre) as sub_genre,
+                       MAX(content_type) as content_type,
+                       MAX(educational_level) as educational_level,
+                       MAX(target_audience) as target_audience
+                FROM video_genres
+                GROUP BY video_id
+            ) vg ON v.video_id = vg.video_id
+        '''
+
+        # Add genre filtering if provided
+        where_clauses = []
+        if genre_path:
+            if len(genre_path) >= 1:
+                where_clauses.append(f"vg.primary_genre = '{genre_path[0]}'")
+            if len(genre_path) >= 2:
+                where_clauses.append(f"vg.secondary_genre = '{genre_path[1]}'")
+
+        if where_clauses:
+            base_query += " WHERE " + " AND ".join(where_clauses)
+
+        base_query += " ORDER BY v.view_count DESC LIMIT 100"
+
+        cursor.execute(base_query)
+        videos = cursor.fetchall()
+        conn.close()
+
+        if not videos:
+            return keyword_fallback_search(query, genre_path, limit)
+
+        # Prepare search context
+        search_context = f"User query: {query}"
+        if genre_path:
+            search_context += f"\\nGenre context: {' → '.join(genre_path)}"
+
+        # Create query embedding
+        openai.api_key = os.getenv('OPENAI_API_KEY')
+        query_response = openai.embeddings.create(
+            model="text-embedding-3-small",
+            input=search_context
+        )
+        query_embedding = np.array(query_response.data[0].embedding)
+
+        # Score videos by semantic similarity
+        scored_videos = []
+        for video_data in videos:
+            # Create video text for embedding
+            video_text = f"Title: {video_data[1] or ''}"
+            if video_data[3]:  # description
+                video_text += f" Description: {video_data[3][:300]}"
+            if video_data[9]:  # tags
+                try:
+                    tags = json.loads(video_data[9]) if isinstance(video_data[9], str) else video_data[9]
+                    if tags:
+                        video_text += f" Tags: {', '.join(tags[:8])}"
+                except:
+                    pass
+
+            # Get video embedding
+            video_response = openai.embeddings.create(
+                model="text-embedding-3-small",
+                input=video_text
+            )
+            video_embedding = np.array(video_response.data[0].embedding)
+
+            # Calculate similarity
+            similarity = cosine_similarity([query_embedding], [video_embedding])[0][0]
+
+            if similarity > 0.25:  # Threshold filter
+                video_dict = format_video_for_search(video_data, similarity)
+                scored_videos.append(video_dict)
+
+        # Sort by similarity and return
+        scored_videos.sort(key=lambda x: x['similarity_score'], reverse=True)
+        return scored_videos[:limit]
+
+    except Exception as e:
+        print(f"Semantic search error: {e}")
+        return keyword_fallback_search(query, genre_path, limit)
+
+def keyword_fallback_search(query: str, genre_path: list, limit: int):
+    """Fallback keyword search"""
+    try:
+        conn = sqlite3.connect('youtube_videos.db')
+        cursor = conn.cursor()
+
+        search_query = '''
+            SELECT v.video_id, v.title, v.channel_title, v.description,
+                   v.thumbnail, v.duration, v.view_count, v.like_count,
+                   v.published_at, v.tags, v.categories,
+                   vg.primary_genre, vg.secondary_genre, vg.sub_genre,
+                   vg.content_type, vg.educational_level, vg.target_audience
+            FROM videos v
+            LEFT JOIN video_genres vg ON v.video_id = vg.video_id
+            WHERE (v.title LIKE ? OR v.description LIKE ?)
+        '''
+
+        params = [f'%{query}%', f'%{query}%']
+        if genre_path and len(genre_path) >= 1:
+            search_query += " AND vg.primary_genre = ?"
+            params.append(genre_path[0])
+
+        search_query += f" ORDER BY v.view_count DESC LIMIT {limit}"
+        cursor.execute(search_query, params)
+        videos = cursor.fetchall()
+        conn.close()
+
+        return [format_video_for_search(video_data, 0.5) for video_data in videos]
+
+    except Exception as e:
+        print(f"Fallback search error: {e}")
+        return []
+
+def format_video_for_search(video_data: tuple, similarity_score: float) -> dict:
+    """Format video data for search results"""
+    (video_id, title, channel_title, description, thumbnail, duration,
+     view_count, like_count, published_at, tags, categories,
+     primary_genre, secondary_genre, sub_genre, content_type,
+     educational_level, target_audience) = video_data
+
+    # Parse tags
+    parsed_tags = []
+    if tags:
+        try:
+            parsed_tags = json.loads(tags) if isinstance(tags, str) else tags
+        except:
+            parsed_tags = []
+
+    return {
+        'video_id': video_id,
+        'title': title,
+        'channel': channel_title,
+        'description': description or '',
+        'thumbnail': thumbnail or '',
+        'duration': duration or 0,
+        'view_count': view_count or 0,
+        'like_count': like_count or 0,
+        'published_at': published_at,
+        'tags': parsed_tags,
+        'categories': [categories] if categories else [],
+        'similarity_score': round(similarity_score, 3),
+        'genres': {
+            'primary': primary_genre,
+            'secondary': secondary_genre,
+            'sub': sub_genre,
+            'content_type': content_type,
+            'educational_level': educational_level,
+            'target_audience': target_audience
+        }
+    }
+
+def generate_search_explanation(query: str, genre_path: list, result_count: int) -> str:
+    """Generate explanation of search results"""
+    explanation = f"Found {result_count} videos"
+    if query:
+        explanation += f" matching '{query}'"
+    if genre_path:
+        explanation += f" in {' → '.join(genre_path)}"
+    explanation += " using semantic similarity search"
+    return explanation
 
 @app.route('/health', methods=['GET'])
 def health_check():

@@ -150,7 +150,9 @@ class RecommendationEngine:
                     GROUP BY video_id
                 ) vg ON v.video_id = vg.video_id
                 WHERE v.video_id NOT IN ({placeholders})
-                ORDER BY v.view_count DESC
+                ORDER BY
+                    CASE WHEN vg.primary_genre IS NOT NULL THEN 0 ELSE 1 END,
+                    v.view_count DESC
                 LIMIT 100
             '''
 

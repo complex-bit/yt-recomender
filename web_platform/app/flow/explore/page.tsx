@@ -1,7 +1,7 @@
 "use client"
 
 import { useRouter } from "next/navigation"
-import { useState, useEffect } from "react"
+import React, { useState, useEffect } from "react"
 import { SearchInput } from "@/components/search-input"
 import { VhsDivider } from "@/components/vhs-divider"
 import { FlowProgress } from "@/components/flow-progress"
@@ -9,7 +9,8 @@ import { Button } from "@/components/ui/button"
 import { useFlow } from "@/lib/flow-context"
 import { GenreWheel } from "@/components/genre-wheel"
 import { ChannelIcon } from "@/components/channel-icon"
-import { getUserProfile, type TopChannel, type GenreTreeNode } from "@/lib/api"
+import { SemanticSearchChat } from "@/components/SemanticSearchChat"
+import { getUserProfile, semanticSearch, type TopChannel, type GenreTreeNode } from "@/lib/api"
 
 export default function ExplorePage() {
   const router = useRouter()
@@ -18,7 +19,12 @@ export default function ExplorePage() {
   const [topChannels, setTopChannels] = useState<TopChannel[]>([])
   const [genreTree, setGenreTree] = useState<GenreTreeNode[]>([])
   const [loading, setLoading] = useState(true)
+  const [refreshing, setRefreshing] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [selectedGenrePath, setSelectedGenrePath] = useState<GenreTreeNode[]>([])
+  const [semanticSearchLoading, setSemanticSearchLoading] = useState(false)
+  const [chatHistory, setChatHistory] = useState<any[]>([])
+  const semanticSearchRef = React.useRef<any>(null)
 
   useEffect(() => {
     const loadProfile = async () => {
@@ -38,6 +44,7 @@ export default function ExplorePage() {
   }, [])
 
   const handleGenreSelect = (node: GenreTreeNode, path: GenreTreeNode[]) => {
+    setSelectedGenrePath(path)
     updateFlow({ selectedGenrePath: path })
     router.push("/flow/results")
   }
@@ -45,6 +52,53 @@ export default function ExplorePage() {
   const handleSearch = (query: string) => {
     updateFlow({ searchQuery: query })
     router.push("/flow/results")
+  }
+
+  const handleSemanticSearch = async (query: string, chatHistory: any[]) => {
+    try {
+      setSemanticSearchLoading(true)
+      const results = await semanticSearch({
+        query,
+        genrePath: selectedGenrePath,
+        chatHistory,
+        limit: 20
+      })
+
+      updateFlow({
+        searchQuery: query,
+        semanticSearchResults: results,
+        selectedGenrePath: selectedGenrePath,
+        searchType: 'semantic',
+        chatHistory: chatHistory
+      })
+
+      // Add system response to chat showing results count
+      if (semanticSearchRef.current?.addSystemResponse) {
+        semanticSearchRef.current.addSystemResponse(
+          `Found ${results.total} videos matching "${query}"${selectedGenrePath.length > 0 ? ` in ${selectedGenrePath.map(n => n.name).join(' → ')}` : ''}`,
+          results.total
+        )
+      }
+
+      router.push("/flow/results")
+    } catch (error) {
+      console.error('Semantic search failed:', error)
+    } finally {
+      setSemanticSearchLoading(false)
+    }
+  }
+
+  const handleRefreshGenres = async () => {
+    try {
+      setRefreshing(true)
+      const profile = await getUserProfile(true) // Force new tree generation
+      setGenreTree(profile.genreTree)
+      setTopChannels(profile.topChannels)
+    } catch (err) {
+      console.error('Failed to refresh genres:', err)
+    } finally {
+      setRefreshing(false)
+    }
   }
 
   const scatteredPositions = [
@@ -95,24 +149,59 @@ export default function ExplorePage() {
           </p>
         </div>
 
-        <div className="bg-[#FFF9F0] rounded-2xl p-8 shadow-lg mb-8 min-h-[700px] flex items-center justify-center">
-          {loading ? (
-            <div className="text-[#6B5B55]">Loading your personalized genre tree...</div>
-          ) : error ? (
-            <div className="text-red-500">{error}</div>
-          ) : (
-            <GenreWheel genres={genreTree} onSelect={handleGenreSelect} />
-          )}
+        <div className="grid lg:grid-cols-2 gap-8 mb-8">
+          {/* Genre Wheel Section */}
+          <div className="bg-[#FFF9F0] rounded-2xl p-8 shadow-lg min-h-[700px] flex flex-col">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-xl font-['Zilla_Slab',serif] font-semibold text-[#3E2723]">
+                Browse by Categories
+              </h3>
+              <Button
+                onClick={handleRefreshGenres}
+                disabled={refreshing}
+                variant="outline"
+                size="sm"
+                className="text-[#6B5B55] border-[#6B5B55] hover:bg-[#6B5B55] hover:text-white"
+              >
+                {refreshing ? 'Refreshing...' : 'Refresh'}
+              </Button>
+            </div>
+            <div className="flex-1 flex items-center justify-center">
+              {loading ? (
+                <div className="text-[#6B5B55]">Loading your personalized genre tree...</div>
+              ) : error ? (
+                <div className="text-red-500">{error}</div>
+              ) : refreshing ? (
+                <div className="text-[#6B5B55]">Generating new personalized genres...</div>
+              ) : (
+                <GenreWheel genres={genreTree} onSelect={handleGenreSelect} />
+              )}
+            </div>
+          </div>
+
+          {/* Semantic Search Section */}
+          <div className="min-h-[700px]">
+            <SemanticSearchChat
+              ref={semanticSearchRef}
+              selectedGenrePath={selectedGenrePath}
+              onSearch={handleSemanticSearch}
+              isLoading={semanticSearchLoading}
+              onChatUpdate={setChatHistory}
+              initialChatHistory={flow.chatHistory || []}
+            />
+          </div>
         </div>
 
-        <VhsDivider text="OR" />
-
-        <SearchInput
-          placeholder="Describe what you want (e.g., 'I want underwater videos')"
-          onSearch={handleSearch}
-          value={localSearch}
-          onChange={setLocalSearch}
-        />
+        {/* Fallback Simple Search */}
+        <div className="mb-8">
+          <VhsDivider text="OR USE SIMPLE SEARCH" />
+          <SearchInput
+            placeholder="Simple search (e.g., 'underwater videos')"
+            onSearch={handleSearch}
+            value={localSearch}
+            onChange={setLocalSearch}
+          />
+        </div>
 
         <div className="flex justify-center mt-8">
           <Button onClick={() => router.push("/")} variant="ghost" className="text-[#6B5B55] hover:text-[#3E2723]">

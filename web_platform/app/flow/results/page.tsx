@@ -1,7 +1,7 @@
 "use client"
 
 import { useRouter } from "next/navigation"
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback, useRef } from "react"
 import { VideoCard } from "@/components/VideoCard"
 import { FilterPanel } from "@/components/FilterPanel"
 import { FlowProgress } from "@/components/flow-progress"
@@ -53,10 +53,41 @@ export default function ResultsPage() {
     uniqueness: 50,
     channels: [] as string[]
   })
+  const [isTransitioning, setIsTransitioning] = useState(false)
+  const debounceTimeoutRef = useRef<NodeJS.Timeout | null>(null)
 
   const fetchRecommendations = async () => {
     try {
       setLoading(true)
+
+      // Check if we have semantic search results to display
+      if (flow.semanticSearchResults && flow.searchType === 'semantic') {
+        // Map semantic search results to the expected format
+        const mappedResults = flow.semanticSearchResults.videos.map(video => ({
+          video_id: video.videoId,
+          title: video.title,
+          channel: video.channelTitle,
+          description: video.description,
+          thumbnail: video.thumbnail,
+          duration: video.duration,
+          view_count: video.view_count,
+          recommendation_score: video.similarity_score || 0,
+          match_reasons: video.match_reasons || [],
+          genres: {
+            primary: '',
+            secondary: '',
+            sub: '',
+            content_type: '',
+            educational_level: '',
+            target_audience: ''
+          }
+        }))
+        setRecommendations(mappedResults)
+        setLoading(false)
+        return
+      }
+
+      // Otherwise, use regular recommendation API
       const params = new URLSearchParams()
       params.append('limit', '20')
 
@@ -110,10 +141,36 @@ export default function ResultsPage() {
     }
   }
 
+  const debouncedFetchRecommendations = useCallback(() => {
+    if (debounceTimeoutRef.current) {
+      clearTimeout(debounceTimeoutRef.current)
+    }
+
+    setIsTransitioning(true)
+
+    debounceTimeoutRef.current = setTimeout(async () => {
+      await fetchRecommendations()
+      setIsTransitioning(false)
+    }, 300) // 300ms debounce delay
+  }, [filters])
+
   useEffect(() => {
     fetchRecommendations()
     fetchAnalytics()
-  }, [filters])
+  }, []) // Initial load only
+
+  useEffect(() => {
+    debouncedFetchRecommendations()
+  }, [filters, debouncedFetchRecommendations])
+
+  // Cleanup timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (debounceTimeoutRef.current) {
+        clearTimeout(debounceTimeoutRef.current)
+      }
+    }
+  }, [])
 
   const handleVideoFeedback = async (videoId: string, feedback: 'up' | 'down') => {
     try {
@@ -141,11 +198,13 @@ export default function ResultsPage() {
   }
 
   const breadcrumb =
-    flow.selectedGenrePath.length > 0
-      ? flow.selectedGenrePath.map((node) => node.name).join(" → ")
-      : flow.searchQuery
-        ? `Search: "${flow.searchQuery}"`
-        : "Personalized Recommendations"
+    flow.searchType === 'semantic' && flow.searchQuery
+      ? `Semantic Search: "${flow.searchQuery}"${flow.selectedGenrePath.length > 0 ? ' in ' + flow.selectedGenrePath.map((node) => node.name).join(" → ") : ''}`
+      : flow.selectedGenrePath.length > 0
+        ? flow.selectedGenrePath.map((node) => node.name).join(" → ")
+        : flow.searchQuery
+          ? `Search: "${flow.searchQuery}"`
+          : "Personalized Recommendations"
 
   return (
     <>
@@ -157,17 +216,27 @@ export default function ResultsPage() {
           <div>
             <div className="text-sm text-[#6B5B55] mb-1 font-['Zilla_Slab',serif]">{breadcrumb}</div>
             <h2 className="font-['Zilla_Slab',serif] text-3xl font-bold text-[#3E2723]">
-              Your Personalized Recommendations
+              {flow.searchType === 'semantic' ? 'Semantic Search Results' : 'Your Personalized Recommendations'}
             </h2>
-            {flow.selectedGenrePath.length > 0 && (
-              <div className="flex flex-wrap gap-2 mt-2">
-                {flow.selectedGenrePath.map((node, index) => (
+            <div className="flex flex-wrap gap-2 mt-2">
+              {flow.searchType === 'semantic' && (
+                <Badge className="bg-[#E76F51] text-white">
+                  Semantic Search
+                </Badge>
+              )}
+              {flow.selectedGenrePath.length > 0 &&
+                flow.selectedGenrePath.map((node, index) => (
                   <Badge key={index} variant="secondary" className="text-xs">
                     {node.name}
                   </Badge>
-                ))}
-              </div>
-            )}
+                ))
+              }
+              {flow.semanticSearchResults?.search_type && (
+                <Badge variant="outline" className="text-xs">
+                  {flow.semanticSearchResults.search_type} search
+                </Badge>
+              )}
+            </div>
           </div>
           <Button onClick={() => router.push("/")} variant="ghost" size="sm" className="text-[#6B5B55] hover:text-[#3E2723]">
             <RotateCcw className="h-4 w-4 mr-2" />
@@ -188,7 +257,7 @@ export default function ResultsPage() {
           {/* Main Content */}
           <div className="flex-1">
             <div className="flex justify-between items-center mb-6">
-              <p className="text-[#6B5B55]">
+              <p className="text-[#6B5B55] transition-all duration-300 ease-in-out">
                 {loading ? (
                   "Loading recommendations..."
                 ) : error ? (
@@ -246,15 +315,27 @@ export default function ResultsPage() {
                 </Button>
               </div>
             ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {recommendations.map((video) => (
-                  <VideoCard
+              <div
+                className={`grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 transition-all duration-500 ease-in-out ${
+                  isTransitioning ? 'opacity-60 scale-[0.98] filter blur-[1px]' : 'opacity-100 scale-100 filter blur-0'
+                }`}
+              >
+                {recommendations.map((video, index) => (
+                  <div
                     key={video.video_id}
-                    video={video}
-                    onFeedback={handleVideoFeedback}
-                    formatDuration={formatDuration}
-                    formatNumber={formatNumber}
-                  />
+                    className="transition-all duration-300 ease-out"
+                    style={{
+                      animationDelay: `${index * 50}ms`,
+                      animation: isTransitioning ? 'none' : 'fadeInUp 0.6s ease-out forwards'
+                    }}
+                  >
+                    <VideoCard
+                      video={video}
+                      onFeedback={handleVideoFeedback}
+                      formatDuration={formatDuration}
+                      formatNumber={formatNumber}
+                    />
+                  </div>
                 ))}
               </div>
             )}
